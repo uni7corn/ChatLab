@@ -2,7 +2,7 @@
 import { useChatStore } from '@/stores/chat'
 import { storeToRefs } from 'pinia'
 import { ref, onMounted } from 'vue'
-import { ChatPlatform } from '@/types/chat'
+
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
@@ -11,7 +11,7 @@ dayjs.extend(relativeTime)
 dayjs.locale('zh-cn')
 
 const chatStore = useChatStore()
-const { sessions, currentSessionId, isImporting } = storeToRefs(chatStore)
+const { sessions, currentSessionId } = storeToRefs(chatStore)
 
 const isCollapsed = ref(false)
 const deleteConfirmId = ref<string | null>(null)
@@ -30,21 +30,6 @@ function handleImport() {
   chatStore.clearSelection()
 }
 
-function getPlatformIcon(platform: ChatPlatform): string {
-  switch (platform) {
-    case ChatPlatform.QQ:
-      return 'i-simple-icons-tencentqq'
-    case ChatPlatform.WECHAT:
-      return 'i-simple-icons-wechat'
-    case ChatPlatform.TELEGRAM:
-      return 'i-simple-icons-telegram'
-    case ChatPlatform.DISCORD:
-      return 'i-simple-icons-discord'
-    default:
-      return 'i-heroicons-chat-bubble-left-right'
-  }
-}
-
 function formatTime(timestamp: number): string {
   return dayjs.unix(timestamp).fromNow()
 }
@@ -55,7 +40,6 @@ function confirmDelete(id: string, event: Event) {
 }
 
 async function handleDelete(id: string) {
-  console.log(2333)
   await chatStore.deleteSession(id)
   deleteConfirmId.value = null
 }
@@ -75,23 +59,29 @@ function cancelDelete() {
       <!-- Header / Toggle -->
       <div class="mb-6 flex items-center" :class="[isCollapsed ? 'justify-center' : 'justify-between']">
         <div v-if="!isCollapsed" class="text-lg font-semibold text-gray-900 dark:text-white">ChatLab</div>
-        <UButton icon="i-heroicons-bars-3" color="gray" variant="ghost" size="sm" @click="toggleSidebar" />
+        <UButton
+          icon="i-heroicons-bars-3"
+          color="gray"
+          variant="ghost"
+          size="md"
+          class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
+          @click="toggleSidebar"
+        />
       </div>
 
       <!-- New Analysis Button -->
       <UTooltip :text="isCollapsed ? '分析新的聊天' : ''" :popper="{ placement: 'right' }">
         <UButton
-          block
-          class="transition-all"
-          :class="[isCollapsed ? 'px-0' : '']"
+          :block="!isCollapsed"
+          class="transition-all rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800 h-12 cursor-pointer"
+          :class="[isCollapsed ? 'flex w-12 items-center justify-center px-0' : 'justify-start pl-4']"
           color="gray"
-          variant="solid"
-          :icon="isImporting ? '' : 'i-heroicons-plus'"
-          :label="isCollapsed ? '' : '分析新的聊天'"
-          :loading="isImporting"
-          :disabled="isImporting"
+          variant="ghost"
           @click="handleImport"
-        />
+        >
+          <UIcon name="i-heroicons-plus" class="h-5 w-5 shrink-0" :class="[isCollapsed ? '' : 'mr-2']" />
+          <span v-if="!isCollapsed" class="truncate">分析新的聊天</span>
+        </UButton>
       </UTooltip>
     </div>
 
@@ -107,24 +97,26 @@ function cancelDelete() {
         <div
           v-for="session in sessions"
           :key="session.id"
-          class="group relative flex w-full items-center rounded-lg p-2 text-left transition-colors hover:bg-gray-200 dark:hover:bg-gray-800"
+          class="group relative flex w-full items-center rounded-full p-2 text-left transition-colors"
           :class="[
-            currentSessionId === session.id
-              ? 'bg-primary-100 text-primary-900 dark:bg-primary-900/30 dark:text-primary-100'
-              : 'text-gray-700 dark:text-gray-200',
+            currentSessionId === session.id && !isCollapsed
+              ? 'bg-primary-100 text-gray-900 dark:bg-primary-900/30 dark:text-primary-100'
+              : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-800',
             isCollapsed ? 'justify-center cursor-pointer' : 'cursor-pointer',
           ]"
           @click="chatStore.selectSession(session.id)"
         >
-          <!-- Platform Icon -->
+          <!-- Platform Icon / Text Avatar -->
           <div
-            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+            class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold"
             :class="[
-              currentSessionId === session.id ? 'bg-primary-200 dark:bg-primary-800' : 'bg-gray-200 dark:bg-gray-700',
+              currentSessionId === session.id
+                ? 'bg-primary-600 text-white dark:bg-primary-500 dark:text-white'
+                : 'bg-gray-400 text-white dark:bg-gray-600 dark:text-white',
               isCollapsed ? '' : 'mr-3',
             ]"
           >
-            <UIcon :name="getPlatformIcon(session.platform)" class="h-5 w-5" />
+            {{ session.name ? session.name.charAt(0) : '?' }}
           </div>
 
           <!-- Session Info -->
@@ -146,6 +138,7 @@ function cancelDelete() {
                   color="red"
                   variant="ghost"
                   size="xs"
+                  class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full"
                   @click="(e: Event) => confirmDelete(session.id, e)"
                 />
               </template>
@@ -164,6 +157,7 @@ function cancelDelete() {
               color="gray"
               variant="ghost"
               size="xs"
+              class="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full"
               @click="(e: Event) => confirmDelete(session.id, e)"
             />
           </div>
@@ -175,13 +169,15 @@ function cancelDelete() {
     <div class="border-t border-gray-200 p-4 dark:border-gray-800">
       <UTooltip :text="isCollapsed ? '设置' : ''" :popper="{ placement: 'right' }">
         <UButton
-          block
+          :block="!isCollapsed"
+          class="transition-all rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800 h-12 cursor-pointer"
+          :class="[isCollapsed ? 'flex w-12 items-center justify-center px-0' : 'justify-start pl-4']"
           color="gray"
           variant="ghost"
-          icon="i-heroicons-cog-6-tooth"
-          :label="isCollapsed ? '' : '设置'"
-          :class="[isCollapsed ? 'px-0' : 'justify-start']"
-        />
+        >
+          <UIcon name="i-heroicons-cog-6-tooth" class="h-5 w-5 shrink-0" :class="[isCollapsed ? '' : 'mr-2']" />
+          <span v-if="!isCollapsed" class="truncate">设置</span>
+        </UButton>
       </UTooltip>
     </div>
   </div>

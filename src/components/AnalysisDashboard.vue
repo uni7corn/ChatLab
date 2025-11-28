@@ -209,7 +209,7 @@ onMounted(loadData)
             class="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all"
             :class="[
               activeTab === tab.id
-                ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
+                ? 'bg-pink-500 text-white dark:bg-pink-900/30 dark:text-pink-300'
                 : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
             ]"
             @click="activeTab = tab.id"
@@ -237,41 +237,40 @@ onMounted(loadData)
 
         <!-- Content with padding -->
         <div class="p-6">
-
-        <Transition name="fade" mode="out-in">
-          <OverviewTab
-            v-if="activeTab === 'overview'"
-            :session="session"
-            :member-activity="memberActivity"
-            :top-members="topMembers"
-            :bottom-members="bottomMembers"
-            :message-types="messageTypes"
-            :hourly-activity="hourlyActivity"
-            :time-range="timeRange"
-            :selected-year="selectedYear"
-            :filtered-message-count="filteredMessageCount"
-            :filtered-member-count="filteredMemberCount"
-          />
-          <MembersTab
-            v-else-if="activeTab === 'members'"
-            :session-id="currentSessionId!"
-            :member-activity="memberActivity"
-            :time-filter="timeFilter"
-          />
-          <TimeTab
-            v-else-if="activeTab === 'time'"
-            :session-id="currentSessionId!"
-            :hourly-activity="hourlyActivity"
-            :time-filter="timeFilter"
-          />
-          <TimelineTab
-            v-else-if="activeTab === 'timeline'"
-            :session-id="currentSessionId!"
-            :daily-activity="dailyActivity"
-            :time-range="timeRange"
-            :time-filter="timeFilter"
-          />
-        </Transition>
+          <Transition name="fade" mode="out-in">
+            <OverviewTab
+              v-if="activeTab === 'overview'"
+              :session="session"
+              :member-activity="memberActivity"
+              :top-members="topMembers"
+              :bottom-members="bottomMembers"
+              :message-types="messageTypes"
+              :hourly-activity="hourlyActivity"
+              :time-range="timeRange"
+              :selected-year="selectedYear"
+              :filtered-message-count="filteredMessageCount"
+              :filtered-member-count="filteredMemberCount"
+            />
+            <MembersTab
+              v-else-if="activeTab === 'members'"
+              :session-id="currentSessionId!"
+              :member-activity="memberActivity"
+              :time-filter="timeFilter"
+            />
+            <TimeTab
+              v-else-if="activeTab === 'time'"
+              :session-id="currentSessionId!"
+              :hourly-activity="hourlyActivity"
+              :time-filter="timeFilter"
+            />
+            <TimelineTab
+              v-else-if="activeTab === 'timeline'"
+              :session-id="currentSessionId!"
+              :daily-activity="dailyActivity"
+              :time-range="timeRange"
+              :time-filter="timeFilter"
+            />
+          </Transition>
         </div>
       </div>
     </template>
