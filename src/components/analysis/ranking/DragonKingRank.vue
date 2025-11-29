@@ -52,7 +52,7 @@ watch(
   <RankListPro
     v-else-if="rankData.length > 0"
     :members="rankData"
-    title="🐉 龙王排名"
+    title="🐉 龙王榜"
     :description="`每天发言最多的人+1（共 ${analysis?.totalDays ?? 0} 天）`"
     unit="天"
   />

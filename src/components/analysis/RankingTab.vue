@@ -24,12 +24,12 @@ const props = defineProps<{
 
 // 锚点导航配置
 const anchors = [
-  { id: 'member-activity', label: '📊 成员活跃度' },
-  { id: 'dragon-king', label: '🐉 龙王排名' },
+  { id: 'member-activity', label: '📊 水群榜' },
+  { id: 'dragon-king', label: '🐉 龙王榜' },
   { id: 'monologue', label: '🎤 自言自语榜' },
-  { id: 'diving', label: '🤿 潜水排名' },
-  { id: 'repeat', label: '🔁 复读分析' },
-  { id: 'night-owl', label: '🦉 修仙排行榜' },
+  { id: 'diving', label: '🤿 潜水榜' },
+  { id: 'repeat', label: '🔁 复读榜' },
+  { id: 'night-owl', label: '🦉 修仙榜' },
 ]
 
 // 使用锚点导航 composable
@@ -52,7 +52,7 @@ const memberRankData = computed<RankItem[]>(() => {
     <div class="min-w-0 flex-1 space-y-6">
       <!-- 成员活跃度排行 -->
       <div id="member-activity" class="scroll-mt-24">
-        <RankListPro :members="memberRankData" title="成员活跃度排行" />
+        <RankListPro :members="memberRankData" title="水群榜" />
       </div>
 
       <!-- 龙王排名 -->

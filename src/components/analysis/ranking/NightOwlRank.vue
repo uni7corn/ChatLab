@@ -70,7 +70,7 @@ watch(
 </script>
 
 <template>
-  <SectionCard title="🦉 修仙排行榜" :show-divider="false">
+  <SectionCard title="🦉 修仙榜" :show-divider="false">
     <template #headerRight>
       <span class="text-xs text-gray-400">深夜时段 23:00 - 05:00</span>
     </template>

@@ -42,7 +42,7 @@ watch(
   <ListPro
     v-else-if="analysis && analysis.rank.length > 0"
     :items="analysis.rank"
-    title="🤿 潜水排名"
+    title="🤿 潜水榜"
     description="按最后发言时间排序，最久没发言的在前面"
     countTemplate="共 {count} 位潜水员"
   >

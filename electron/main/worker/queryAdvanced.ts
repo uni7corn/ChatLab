@@ -109,7 +109,27 @@ export function getRepeatAnalysis(sessionId: string, filter?: TimeFilter): any {
     } else {
       contentStats.set(content, { count: 1, maxChainLength: chainLength, originatorId, lastTs: chainTs })
     }
+
+    // 计算反应时间 (Fastest Follower)
+    // 从第二个消息开始，计算与前一条消息的时间差
+    for (let i = 1; i < chain.length; i++) {
+      const currentMsg = chain[i]
+      const prevMsg = chain[i - 1]
+      const diff = (currentMsg.ts - prevMsg.ts) * 1000 // 毫秒
+
+      // 只统计 60 秒内的复读，排除间隔过久的“伪复读”
+      if (diff <= 60 * 1000) {
+        if (!fastestRepeaterStats.has(currentMsg.senderId)) {
+          fastestRepeaterStats.set(currentMsg.senderId, { totalDiff: 0, count: 0 })
+        }
+        const stats = fastestRepeaterStats.get(currentMsg.senderId)!
+        stats.totalDiff += diff
+        stats.count++
+      }
+    }
   }
+
+  const fastestRepeaterStats = new Map<number, { totalDiff: number; count: number }>()
 
   for (const msg of messages) {
     if (!memberInfo.has(msg.senderId)) {
@@ -171,6 +191,26 @@ export function getRepeatAnalysis(sessionId: string, filter?: TimeFilter): any {
     return items.sort((a, b) => b.rate - a.rate)
   }
 
+  const buildFastestList = (): any[] => {
+    const items: any[] = []
+    for (const [memberId, stats] of fastestRepeaterStats.entries()) {
+      // 过滤掉偶尔复读的人，至少参与5次复读才统计，避免数据偏差
+      if (stats.count < 5) continue
+
+      const info = memberInfo.get(memberId)
+      if (info) {
+        items.push({
+          memberId,
+          platformId: info.platformId,
+          name: info.name,
+          count: stats.count,
+          avgTimeDiff: Math.round(stats.totalDiff / stats.count),
+        })
+      }
+    }
+    return items.sort((a, b) => a.avgTimeDiff - b.avgTimeDiff) // 越快越好
+  }
+
   const chainLengthDistribution: any[] = []
   for (const [length, count] of chainLengthCount.entries()) {
     chainLengthDistribution.push({ length, count })
@@ -189,17 +229,18 @@ export function getRepeatAnalysis(sessionId: string, filter?: TimeFilter): any {
     })
   }
   hotContents.sort((a, b) => b.maxChainLength - a.maxChainLength)
-  const top10HotContents = hotContents.slice(0, 10)
+  const top50HotContents = hotContents.slice(0, 50)
 
   return {
     originators: buildRankList(originatorCount, totalRepeatChains),
     initiators: buildRankList(initiatorCount, totalRepeatChains),
     breakers: buildRankList(breakerCount, totalRepeatChains),
+    fastestRepeaters: buildFastestList(),
     originatorRates: buildRateList(originatorCount),
     initiatorRates: buildRateList(initiatorCount),
     breakerRates: buildRateList(breakerCount),
     chainLengthDistribution,
-    hotContents: top10HotContents,
+    hotContents: top50HotContents,
     avgChainLength: totalRepeatChains > 0 ? Math.round((totalChainLength / totalRepeatChains) * 100) / 100 : 0,
     totalRepeatChains,
   }

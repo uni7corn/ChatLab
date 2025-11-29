@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { RepeatAnalysis } from '@/types/chat'
-import { RankListPro, BarChart } from '@/components/charts'
+import { RankListPro, BarChart, ListPro } from '@/components/charts'
 import type { RankItem, BarChartData } from '@/components/charts'
 import { SectionCard, EmptyState, LoadingState } from '@/components/UI'
 import { formatDate, getRankBadgeClass } from '@/utils'
@@ -88,7 +88,7 @@ watch(
 
 <template>
   <SectionCard
-    title="复读分析"
+    title="复读榜"
     :description="
       isLoading
         ? '加载中...'
@@ -126,14 +126,16 @@ watch(
           </div>
         </div>
 
-        <!-- 最长复读链 TOP 10 -->
-        <div class="rounded-lg border border-gray-100 bg-gray-50/50 dark:border-gray-800 dark:bg-gray-800/50">
-          <div class="border-b border-gray-100 px-4 py-3 dark:border-gray-800">
-            <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">🏆 最长复读链 TOP 10</h4>
-            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">单次复读参与人数最多的内容</p>
-          </div>
-          <div v-if="analysis.hotContents.length > 0" class="divide-y divide-gray-100 dark:divide-gray-800">
-            <div v-for="(item, index) in analysis.hotContents" :key="index" class="flex items-center gap-3 px-4 py-3">
+        <!-- 最火复读内容榜 -->
+        <ListPro
+          v-if="analysis.hotContents.length > 0"
+          :items="analysis.hotContents"
+          title="🏆 最火复读内容榜"
+          description="单次复读参与人数最多的内容"
+          countTemplate="共 {count} 条热门复读"
+        >
+          <template #item="{ item, index }">
+            <div class="flex items-center gap-3">
               <span
                 class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold"
                 :class="getRankBadgeClass(index)"
@@ -153,35 +155,87 @@ watch(
                 <span>{{ formatDate(item.lastTs) }}</span>
               </div>
             </div>
-          </div>
-          <EmptyState v-else padding="md" />
-        </div>
+          </template>
+        </ListPro>
       </div>
 
-      <!-- 复读排行榜 -->
-      <RankListPro
-        v-if="originatorRankData.length > 0"
-        :members="originatorRankData"
-        title="🎯 谁的聊天最容易产生复读"
-        :description="rankMode === 'rate' ? '被复读次数 / 总发言数' : '发出的消息被别人复读的次数'"
-        unit="次"
-      />
+      <!-- 复读排行榜 Grid -->
+      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <RankListPro
+          v-if="originatorRankData.length > 0"
+          :members="originatorRankData"
+          title="🎯 谁的聊天最容易产生复读"
+          :description="rankMode === 'rate' ? '被复读次数 / 总发言数' : '发出的消息被别人复读的次数'"
+          unit="次"
+        />
 
-      <RankListPro
-        v-if="initiatorRankData.length > 0"
-        :members="initiatorRankData"
-        title="🔥 谁最喜欢挑起复读"
-        :description="rankMode === 'rate' ? '挑起复读次数 / 总发言数' : '第二个发送相同消息、带起节奏的人'"
-        unit="次"
-      />
+        <RankListPro
+          v-if="initiatorRankData.length > 0"
+          :members="initiatorRankData"
+          title="🔥 谁最喜欢挑起复读"
+          :description="rankMode === 'rate' ? '挑起复读次数 / 总发言数' : '第二个发送相同消息、带起节奏的人'"
+          unit="次"
+        />
 
-      <RankListPro
-        v-if="breakerRankData.length > 0"
-        :members="breakerRankData"
-        title="✂️ 谁喜欢打断复读"
-        :description="rankMode === 'rate' ? '打断复读次数 / 总发言数' : '终结复读链的人'"
-        unit="次"
-      />
+        <RankListPro
+          v-if="breakerRankData.length > 0"
+          :members="breakerRankData"
+          title="✂️ 谁喜欢打断复读"
+          :description="rankMode === 'rate' ? '打断复读次数 / 总发言数' : '终结复读链的人'"
+          unit="次"
+        />
+
+        <!-- 最快复读选手 -->
+        <ListPro
+          v-if="analysis.fastestRepeaters && analysis.fastestRepeaters.length > 0"
+          :items="analysis.fastestRepeaters"
+          title="⚡️ 最快复读选手"
+          description="平均复读反应时间（至少参与5次复读）"
+          countTemplate="共 {count} 位选手"
+        >
+          <template #item="{ item: member, index }">
+            <div class="flex items-center gap-3">
+              <!-- 排名 -->
+              <div
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+                :class="getRankBadgeClass(index)"
+              >
+                {{ index + 1 }}
+              </div>
+
+              <!-- 名字 -->
+              <div class="w-32 shrink-0">
+                <p class="truncate font-medium text-gray-900 dark:text-white">
+                  {{ member.name }}
+                </p>
+              </div>
+
+              <!-- 反应时间条 -->
+              <div class="flex flex-1 items-center">
+                <div class="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                  <div
+                    class="h-full rounded-full bg-linear-to-r from-yellow-400 to-orange-500"
+                    :style="{
+                      width: `${Math.max(
+                        5,
+                        100 - (member.avgTimeDiff / analysis!.fastestRepeaters[0].avgTimeDiff - 1) * 20
+                      )}%`,
+                    }"
+                  />
+                </div>
+              </div>
+
+              <!-- 统计数据 -->
+              <div class="shrink-0 text-right">
+                <div class="text-lg font-bold text-gray-900 dark:text-white">
+                  {{ (member.avgTimeDiff / 1000).toFixed(2) }}s
+                </div>
+                <div class="text-xs text-gray-500">参与 {{ member.count }} 次</div>
+              </div>
+            </div>
+          </template>
+        </ListPro>
+      </div>
     </div>
 
     <EmptyState v-else text="该群组暂无复读记录" />

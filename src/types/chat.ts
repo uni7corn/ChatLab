@@ -425,6 +425,17 @@ export interface CatchphraseAnalysis {
 }
 
 /**
+ * 最快复读选手统计项
+ */
+export interface FastestRepeaterItem {
+  memberId: number
+  platformId: string
+  name: string
+  count: number // 参与复读次数
+  avgTimeDiff: number // 平均反应时间（毫秒）
+}
+
+/**
  * 复读分析结果
  */
 export interface RepeatAnalysis {
@@ -434,6 +445,8 @@ export interface RepeatAnalysis {
   initiators: RepeatStatItem[]
   /** 谁喜欢打断复读（终结者）- 绝对次数 */
   breakers: RepeatStatItem[]
+  /** 最快复读选手（平均反应时间） */
+  fastestRepeaters: FastestRepeaterItem[]
 
   /** 被复读率排名（相对比例） */
   originatorRates: RepeatRateItem[]
