@@ -155,14 +155,21 @@ const checkUpdate = (win) => {
         .replace(/\n{2,}/g, '\n')
         .trim()
 
-      // 如果包含下载说明章节，截断该部分及之后的内容（匹配二级标题，支持中英文）
-      const downloadGuideIndex = Math.min(
-        ...[releaseNotes.indexOf('## Download'), releaseNotes.indexOf('## 下载说明')]
-          .filter((i) => i > 0)
-          .concat([Infinity])
-      )
-      if (downloadGuideIndex < Infinity) {
-        releaseNotes = releaseNotes.substring(0, downloadGuideIndex).trim()
+      // 如果包含下载说明章节，截断该部分及之后的内容
+      // 支持多种格式：Markdown（## Download）和 HTML 处理后的纯文本（Download）
+      const downloadPatterns = [
+        /^#{1,3}\s*Download\s*$/m, // Markdown 格式：# Download, ## Download, ### Download
+        /^Download\s*$/m, // HTML 处理后的纯文本格式
+        /^#{1,3}\s*下载说明\s*$/m, // 中文 Markdown 格式
+        /^下载说明\s*$/m, // 中文 HTML 处理后的格式
+      ]
+
+      for (const pattern of downloadPatterns) {
+        const match = releaseNotes.match(pattern)
+        if (match && match.index !== undefined) {
+          releaseNotes = releaseNotes.substring(0, match.index).trim()
+          break
+        }
       }
     }
 
