@@ -1,6 +1,6 @@
 import { computed } from 'vue'
 import type { DailyActivity } from '@/types/analysis'
-import type { LineChartData } from '@/components/charts'
+import type { EChartLineData } from '@/components/charts'
 import dayjs from 'dayjs'
 
 export function useDailyTrend(dailyActivity: DailyActivity[]) {
@@ -12,7 +12,7 @@ export function useDailyTrend(dailyActivity: DailyActivity[]) {
   })
 
   // 每日趋势图数据（动态聚合）
-  const dailyChartData = computed<LineChartData>(() => {
+  const dailyChartData = computed<EChartLineData>(() => {
     const rawData = dailyActivity
     const maxPoints = 50 // 最大展示点数
 

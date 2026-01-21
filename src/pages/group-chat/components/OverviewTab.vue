@@ -10,8 +10,8 @@ import type {
   WeekdayActivity,
   MonthlyActivity,
 } from '@/types/analysis'
-import { DoughnutChart } from '@/components/charts'
-import type { DoughnutChartData } from '@/components/charts'
+import { EChartPie } from '@/components/charts'
+import type { EChartPieData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
 import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatistics'
 import { useDailyTrend } from '@/composables/analysis/useDailyTrend'
@@ -62,7 +62,7 @@ const {
 const { dailyChartData } = useDailyTrend(props.dailyActivity)
 
 // 消息类型图表数据
-const typeChartData = computed<DoughnutChartData>(() => {
+const typeChartData = computed<EChartPieData>(() => {
   return {
     labels: props.messageTypes.map((t) => getMessageTypeName(t.type)),
     values: props.messageTypes.map((t) => t.count),
@@ -70,7 +70,7 @@ const typeChartData = computed<DoughnutChartData>(() => {
 })
 
 // 成员水群分布图表数据
-const memberChartData = computed<DoughnutChartData>(() => {
+const memberChartData = computed<EChartPieData>(() => {
   const sortedMembers = [...props.memberActivity].sort((a, b) => b.messageCount - a.messageCount)
   const top10 = sortedMembers.slice(0, 10)
   const othersCount = sortedMembers.slice(10).reduce((sum, m) => sum + m.messageCount, 0)
@@ -161,14 +161,14 @@ watch(
       <!-- 消息类型分布 -->
       <SectionCard :title="t('messageTypeDistribution')" :show-divider="false">
         <div class="p-5">
-          <DoughnutChart :data="typeChartData" :height="256" />
+          <EChartPie :data="typeChartData" :height="256" />
         </div>
       </SectionCard>
 
       <!-- 成员水群分布 -->
       <SectionCard :title="t('memberDistribution')" :show-divider="false">
         <div class="p-5">
-          <DoughnutChart :data="memberChartData" :height="256" />
+          <EChartPie :data="memberChartData" :height="256" />
         </div>
       </SectionCard>
     </div>

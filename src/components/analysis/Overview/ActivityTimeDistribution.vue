@@ -2,8 +2,8 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { HourlyActivity, WeekdayActivity, MonthlyActivity } from '@/types/analysis'
-import { BarChart } from '@/components/charts'
-import type { BarChartData } from '@/components/charts'
+import { EChartBar } from '@/components/charts'
+import type { EChartBarData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
 
 const { t, locale } = useI18n()
@@ -20,7 +20,7 @@ const props = defineProps<{
 
 // --- 24小时分布逻辑 ---
 // 24小时分布图数据
-const hourlyChartData = computed<BarChartData>(() => {
+const hourlyChartData = computed<EChartBarData>(() => {
   return {
     labels: props.hourlyActivity.map((h) => `${h.hour}:00`),
     values: props.hourlyActivity.map((h) => h.messageCount),
@@ -60,7 +60,7 @@ const eveningRatio = computed(() => {
 
 // --- 星期分布逻辑 ---
 // 星期分布图数据
-const weekdayChartData = computed<BarChartData>(() => {
+const weekdayChartData = computed<EChartBarData>(() => {
   return {
     labels: props.weekdayActivity.map((w) => props.weekdayNames[w.weekday - 1]),
     values: props.weekdayActivity.map((w) => w.messageCount),
@@ -69,7 +69,7 @@ const weekdayChartData = computed<BarChartData>(() => {
 
 // --- 月份分布逻辑 ---
 // 月份分布图数据
-const monthlyChartData = computed<BarChartData>(() => {
+const monthlyChartData = computed<EChartBarData>(() => {
   return {
     labels: props.monthlyActivity.map((m) => {
       // 中文用 X月，英文用 Jan, Feb 等
@@ -89,11 +89,7 @@ const monthlyChartData = computed<BarChartData>(() => {
     <!-- 24小时分布 -->
     <SectionCard :title="t('hourlyTitle')" :show-divider="false">
       <div class="p-5">
-        <BarChart
-          :data="hourlyChartData"
-          :height="256"
-          :x-label-filter="(_, index) => (index % 3 === 0 ? `${index}:00` : '')"
-        />
+        <EChartBar :data="hourlyChartData" :height="256" />
 
         <div class="mt-6 grid grid-cols-4 gap-2">
           <div class="text-center">
@@ -135,7 +131,7 @@ const monthlyChartData = computed<BarChartData>(() => {
           <UIcon name="i-heroicons-arrow-path" class="h-6 w-6 animate-spin text-pink-500" />
         </div>
         <template v-else>
-          <BarChart :data="weekdayChartData" :height="256" />
+          <EChartBar :data="weekdayChartData" :height="256" />
 
           <div class="mt-6 grid grid-cols-2 gap-4">
             <div class="text-center">
@@ -173,7 +169,7 @@ const monthlyChartData = computed<BarChartData>(() => {
         <div v-if="isLoadingMonthly" class="flex h-64 items-center justify-center">
           <UIcon name="i-heroicons-arrow-path" class="h-6 w-6 animate-spin text-pink-500" />
         </div>
-        <BarChart v-else :data="monthlyChartData" :height="256" />
+        <EChartBar v-else :data="monthlyChartData" :height="256" />
       </div>
     </SectionCard>
   </div>

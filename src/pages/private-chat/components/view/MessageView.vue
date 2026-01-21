@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import type { MessageType } from '@/types/base'
 import { getMessageTypeName } from '@/types/base'
 import type { HourlyActivity, WeekdayActivity, MonthlyActivity } from '@/types/analysis'
-import { DoughnutChart, BarChart } from '@/components/charts'
-import type { DoughnutChartData, BarChartData } from '@/components/charts'
+import { EChartPie, EChartBar } from '@/components/charts'
+import type { EChartPieData, EChartBarData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
 
 const { t } = useI18n()
@@ -57,7 +57,7 @@ const monthNames = computed(() => [
 ])
 
 // 消息类型饼图数据
-const typeChartData = computed<DoughnutChartData>(() => {
+const typeChartData = computed<EChartPieData>(() => {
   // 按数量排序
   const sorted = [...messageTypes.value].sort((a, b) => b.count - a.count)
   return {
@@ -67,7 +67,7 @@ const typeChartData = computed<DoughnutChartData>(() => {
 })
 
 // 小时分布图表数据
-const hourlyChartData = computed<BarChartData>(() => {
+const hourlyChartData = computed<EChartBarData>(() => {
   // 补全 24 小时数据
   const hourMap = new Map(hourlyActivity.value.map((h) => [h.hour, h.messageCount]))
   const labels: string[] = []
@@ -82,7 +82,7 @@ const hourlyChartData = computed<BarChartData>(() => {
 })
 
 // 星期分布图表数据
-const weekdayChartData = computed<BarChartData>(() => {
+const weekdayChartData = computed<EChartBarData>(() => {
   // 补全 7 天数据（weekday: 1=周一, 2=周二, ..., 7=周日）
   const dayMap = new Map(weekdayActivity.value.map((w) => [w.weekday, w.messageCount]))
   const values: number[] = []
@@ -99,7 +99,7 @@ const weekdayChartData = computed<BarChartData>(() => {
 })
 
 // 月份分布图表数据
-const monthlyChartData = computed<BarChartData>(() => {
+const monthlyChartData = computed<EChartBarData>(() => {
   // 补全 12 个月数据
   const monthMap = new Map(monthlyActivity.value.map((m) => [m.month, m.messageCount]))
   const values: number[] = []
@@ -115,7 +115,7 @@ const monthlyChartData = computed<BarChartData>(() => {
 })
 
 // 年份分布图表数据
-const yearlyChartData = computed<BarChartData>(() => {
+const yearlyChartData = computed<EChartBarData>(() => {
   // 按年份排序
   const sorted = [...yearlyActivity.value].sort((a, b) => a.year - b.year)
   return {
@@ -216,7 +216,7 @@ watch(
       <!-- 消息类型分布 -->
       <SectionCard :title="t('typeDistribution')" :show-divider="false">
         <div class="p-5">
-          <DoughnutChart v-if="typeChartData.values.length > 0" :data="typeChartData" :height="280" />
+          <EChartPie v-if="typeChartData.values.length > 0" :data="typeChartData" :height="280" />
           <div v-else class="flex h-48 items-center justify-center text-gray-400">
             {{ t('noData') }}
           </div>
@@ -228,14 +228,14 @@ watch(
         <!-- 小时分布 -->
         <SectionCard :title="t('hourlyDistribution')" :show-divider="false">
           <div class="p-5">
-            <BarChart :data="hourlyChartData" :height="200" />
+            <EChartBar :data="hourlyChartData" :height="200" />
           </div>
         </SectionCard>
 
         <!-- 星期分布 -->
         <SectionCard :title="t('weekdayDistribution')" :show-divider="false">
           <div class="p-5">
-            <BarChart :data="weekdayChartData" :height="200" />
+            <EChartBar :data="weekdayChartData" :height="200" />
           </div>
         </SectionCard>
       </div>
@@ -245,14 +245,14 @@ watch(
         <!-- 月份分布 -->
         <SectionCard :title="t('monthlyDistribution')" :show-divider="false">
           <div class="p-5">
-            <BarChart :data="monthlyChartData" :height="200" />
+            <EChartBar :data="monthlyChartData" :height="200" />
           </div>
         </SectionCard>
 
         <!-- 年份分布 -->
         <SectionCard :title="t('yearlyDistribution')" :show-divider="false">
           <div class="p-5">
-            <BarChart
+            <EChartBar
               v-if="yearlyChartData.values.length > 0"
               :data="yearlyChartData"
               :height="200"

@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import type { RepeatAnalysis } from '@/types/analysis'
-import { RankListPro, BarChart, ListPro } from '@/components/charts'
-import type { RankItem, BarChartData } from '@/components/charts'
+import { RankListPro, EChartBar, ListPro } from '@/components/charts'
+import type { RankItem, EChartBarData } from '@/components/charts'
 import { SectionCard, EmptyState, LoadingState } from '@/components/UI'
 import { getRankBadgeClass } from '@/utils'
 
@@ -65,7 +65,7 @@ const breakerRankData = computed<RankItem[]>(() => {
   }))
 })
 
-const chainLengthChartData = computed<BarChartData>(() => {
+const chainLengthChartData = computed<EChartBarData>(() => {
   if (!analysis.value) return { labels: [], values: [] }
   const distribution = analysis.value.chainLengthDistribution
   return {
@@ -115,7 +115,7 @@ watch(
             <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">每次复读有多少人参与</p>
           </div>
           <div class="p-4">
-            <BarChart v-if="chainLengthChartData.labels.length > 0" :data="chainLengthChartData" :height="200" />
+            <EChartBar v-if="chainLengthChartData.labels.length > 0" :data="chainLengthChartData" :height="200" />
             <EmptyState v-else padding="md" />
           </div>
         </div>

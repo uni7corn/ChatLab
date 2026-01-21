@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import { getMessageTypeName } from '@/types/base'
 import type { MemberActivity, HourlyActivity, DailyActivity, WeekdayActivity, MonthlyActivity } from '@/types/analysis'
-import { DoughnutChart } from '@/components/charts'
-import type { DoughnutChartData } from '@/components/charts'
+import { EChartPie } from '@/components/charts'
+import type { EChartPieData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
 import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatistics'
 import { useDailyTrend } from '@/composables/analysis/useDailyTrend'
@@ -54,7 +54,7 @@ const {
 const { dailyChartData } = useDailyTrend(props.dailyActivity)
 
 // 消息类型图表数据
-const typeChartData = computed<DoughnutChartData>(() => {
+const typeChartData = computed<EChartPieData>(() => {
   return {
     labels: props.messageTypes.map((t) => getMessageTypeName(t.type)),
     values: props.messageTypes.map((t) => t.count),
@@ -89,7 +89,7 @@ const memberComparisonData = computed(() => {
 })
 
 // 双方对比图表数据
-const comparisonChartData = computed<DoughnutChartData>(() => {
+const comparisonChartData = computed<EChartPieData>(() => {
   if (!memberComparisonData.value) {
     return { labels: [], values: [] }
   }
@@ -252,14 +252,14 @@ watch(
       <!-- 消息类型分布 -->
       <SectionCard :title="t('messageTypeDistribution')" :show-divider="false">
         <div class="p-5">
-          <DoughnutChart :data="typeChartData" :height="256" />
+          <EChartPie :data="typeChartData" :height="256" />
         </div>
       </SectionCard>
 
       <!-- 双方消息占比饼图 -->
       <SectionCard v-if="memberComparisonData" :title="t('memberComparison')" :show-divider="false">
         <div class="p-5">
-          <DoughnutChart :data="comparisonChartData" :height="256" />
+          <EChartPie :data="comparisonChartData" :height="256" />
         </div>
       </SectionCard>
     </div>
