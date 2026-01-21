@@ -4,8 +4,8 @@ import { useI18n } from 'vue-i18n'
 import type { MessageType } from '@/types/base'
 import { getMessageTypeName } from '@/types/base'
 import type { HourlyActivity, WeekdayActivity, MonthlyActivity } from '@/types/analysis'
-import { EChartPie, EChartBar } from '@/components/charts'
-import type { EChartPieData, EChartBarData } from '@/components/charts'
+import { EChartPie, EChartBar, EChartHeatmap } from '@/components/charts'
+import type { EChartPieData, EChartBarData, EChartHeatmapData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
 
 const { t } = useI18n()
@@ -124,50 +124,32 @@ const yearlyChartData = computed<EChartBarData>(() => {
   }
 })
 
-// 热力图数据（小时 x 星期）
-const heatmapData = computed(() => {
-  // 这里需要新的 API 来获取二维数据
-  // 暂时使用模拟数据展示效果（基于独立的小时和星期数据估算）
-  const data: number[][] = []
+// 热力图数据（小时 x 星期）- 转换为 ECharts 热力图格式
+const heatmapChartData = computed<EChartHeatmapData>(() => {
+  // X 轴：24 小时
+  const xLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`)
+  // Y 轴：周一到周日
+  const yLabels = weekdayNames.value
+
+  // 计算总消息数用于归一化
   const total = messageTypes.value.reduce((sum, t) => sum + t.count, 0) || 1
 
-  // 按周一(1)到周日(7)的顺序
+  // 数据格式：[x索引, y索引, 值]
+  const data: Array<[number, number, number]> = []
+
+  // 按周一(1)到周日(7)的顺序生成数据
   for (let day = 1; day <= 7; day++) {
-    const row: number[] = []
     for (let hour = 0; hour < 24; hour++) {
-      // 使用现有数据模拟：星期数据 * 小时数据 / 总数 作为近似值
+      // 使用现有数据估算：星期数据 * 小时数据 / 总数
       const dayCount = weekdayActivity.value.find((w) => w.weekday === day)?.messageCount || 0
       const hourCount = hourlyActivity.value.find((h) => h.hour === hour)?.messageCount || 0
-      // 归一化到 0-100
-      const normalized = Math.round((dayCount * hourCount) / total)
-      row.push(normalized)
-    }
-    data.push(row)
-  }
-  return data
-})
-
-// 热力图最大值（用于颜色映射）
-const heatmapMax = computed(() => {
-  let max = 0
-  for (const row of heatmapData.value) {
-    for (const val of row) {
-      if (val > max) max = val
+      const value = Math.round((dayCount * hourCount) / total)
+      data.push([hour, day - 1, value])
     }
   }
-  return max || 1
-})
 
-// 获取热力图单元格颜色
-function getHeatmapColor(value: number): string {
-  const intensity = value / heatmapMax.value
-  if (intensity === 0) return 'bg-gray-100 dark:bg-gray-800'
-  if (intensity < 0.2) return 'bg-pink-100 dark:bg-pink-900/30'
-  if (intensity < 0.4) return 'bg-pink-200 dark:bg-pink-800/40'
-  if (intensity < 0.6) return 'bg-pink-300 dark:bg-pink-700/50'
-  if (intensity < 0.8) return 'bg-pink-400 dark:bg-pink-600/60'
-  return 'bg-pink-500 dark:bg-pink-500'
-}
+  return { xLabels, yLabels, data }
+})
 
 // 加载数据
 async function loadData() {
@@ -270,48 +252,7 @@ watch(
           <span class="text-xs text-gray-400">{{ t('heatmapHint') }}</span>
         </template>
         <div class="p-5">
-          <div class="overflow-x-auto">
-            <!-- 小时标签 -->
-            <div class="mb-1 flex pl-12">
-              <div
-                v-for="hour in 24"
-                :key="hour"
-                class="flex h-4 w-4 shrink-0 items-center justify-center text-[10px] text-gray-400"
-              >
-                {{ hour - 1 }}
-              </div>
-            </div>
-            <!-- 热力图行 -->
-            <div v-for="(row, dayIndex) in heatmapData" :key="dayIndex" class="flex items-center">
-              <!-- 星期标签 -->
-              <div class="w-12 shrink-0 text-xs text-gray-500 dark:text-gray-400">
-                {{ weekdayNames[dayIndex] }}
-              </div>
-              <!-- 热力格子 -->
-              <div class="flex gap-px">
-                <div
-                  v-for="(value, hourIndex) in row"
-                  :key="hourIndex"
-                  class="h-4 w-4 rounded-sm transition-colors"
-                  :class="getHeatmapColor(value)"
-                  :title="`${weekdayNames[dayIndex]} ${hourIndex}:00 - ${value}`"
-                />
-              </div>
-            </div>
-            <!-- 图例 -->
-            <div class="mt-4 flex items-center justify-end gap-2">
-              <span class="text-xs text-gray-400">{{ t('less') }}</span>
-              <div class="flex gap-px">
-                <div class="h-3 w-3 rounded-sm bg-gray-100 dark:bg-gray-800" />
-                <div class="h-3 w-3 rounded-sm bg-pink-100 dark:bg-pink-900/30" />
-                <div class="h-3 w-3 rounded-sm bg-pink-200 dark:bg-pink-800/40" />
-                <div class="h-3 w-3 rounded-sm bg-pink-300 dark:bg-pink-700/50" />
-                <div class="h-3 w-3 rounded-sm bg-pink-400 dark:bg-pink-600/60" />
-                <div class="h-3 w-3 rounded-sm bg-pink-500 dark:bg-pink-500" />
-              </div>
-              <span class="text-xs text-gray-400">{{ t('more') }}</span>
-            </div>
-          </div>
+          <EChartHeatmap :data="heatmapChartData" :height="320" />
         </div>
       </SectionCard>
 
@@ -352,8 +293,6 @@ watch(
     "memberTypeComparison": "双方类型对比",
     "noData": "暂无数据",
     "comingSoon": "功能开发中...",
-    "less": "少",
-    "more": "多",
     "weekdays": {
       "sun": "周日",
       "mon": "周一",
@@ -390,8 +329,6 @@ watch(
     "memberTypeComparison": "Member Type Comparison",
     "noData": "No data",
     "comingSoon": "Coming soon...",
-    "less": "Less",
-    "more": "More",
     "weekdays": {
       "sun": "Sun",
       "mon": "Mon",

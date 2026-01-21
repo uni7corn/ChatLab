@@ -29,7 +29,7 @@ const props = withDefaults(defineProps<Props>(), {
   borderRadius: 4,
 })
 
-// 渐变色
+// 渐变色（使用项目主题粉色）
 const gradientColor = {
   type: 'linear' as const,
   x: 0,
@@ -37,8 +37,8 @@ const gradientColor = {
   x2: 0,
   y2: 1,
   colorStops: [
-    { offset: 0, color: '#ec4899' }, // pink-500
-    { offset: 1, color: '#f472b6' }, // pink-400
+    { offset: 0, color: '#ee4567' }, // 项目主题 pink-500
+    { offset: 1, color: '#f7758c' }, // 项目主题 pink-400
   ],
 }
 
@@ -113,7 +113,7 @@ const option = computed<EChartsOption>(() => {
         type: 'bar',
         data: props.data.values,
         itemStyle: {
-          color: props.gradient ? gradientColor : '#ec4899',
+          color: props.gradient ? gradientColor : '#ee4567',
           borderRadius: props.borderRadius,
         },
         barMaxWidth: 40,
@@ -123,11 +123,11 @@ const option = computed<EChartsOption>(() => {
               ? {
                   ...gradientColor,
                   colorStops: [
-                    { offset: 0, color: '#db2777' }, // pink-600
-                    { offset: 1, color: '#ec4899' }, // pink-500
+                    { offset: 0, color: '#de335e' }, // 项目主题 pink-600
+                    { offset: 1, color: '#ee4567' }, // 项目主题 pink-500
                   ],
                 }
-              : '#db2777',
+              : '#de335e',
           },
         },
       },

@@ -5,6 +5,7 @@ export { default as EChart } from './EChart.vue'
 export { default as EChartPie } from './EChartPie.vue'
 export { default as EChartBar } from './EChartBar.vue'
 export { default as EChartLine } from './EChartLine.vue'
+export { default as EChartHeatmap } from './EChartHeatmap.vue'
 
 // 其他组件
 export { default as RankList } from './RankList.vue'
@@ -17,6 +18,7 @@ export { default as MemberNicknameHistory } from './MemberNicknameHistory.vue'
 export type { EChartPieData } from './EChartPie.vue'
 export type { EChartBarData } from './EChartBar.vue'
 export type { EChartLineData } from './EChartLine.vue'
+export type { EChartHeatmapData } from './EChartHeatmap.vue'
 
 // 其他类型
 export type { RankItem } from './RankList.vue'

@@ -76,10 +76,10 @@ const option = computed<EChartsOption>(() => {
         showSymbol: false,
         lineStyle: {
           width: 2,
-          color: '#ec4899', // pink-500
+          color: '#ee4567', // 项目主题 pink-500
         },
         itemStyle: {
-          color: '#ec4899',
+          color: '#ee4567',
         },
         areaStyle: props.showArea
           ? {
@@ -90,8 +90,8 @@ const option = computed<EChartsOption>(() => {
                 x2: 0,
                 y2: 1,
                 colorStops: [
-                  { offset: 0, color: 'rgba(236, 72, 153, 0.3)' },
-                  { offset: 1, color: 'rgba(236, 72, 153, 0.05)' },
+                  { offset: 0, color: 'rgba(238, 69, 103, 0.3)' }, // 项目主题粉色
+                  { offset: 1, color: 'rgba(238, 69, 103, 0.05)' },
                 ],
               },
             }
@@ -99,7 +99,7 @@ const option = computed<EChartsOption>(() => {
         emphasis: {
           focus: 'series',
           itemStyle: {
-            color: '#ec4899',
+            color: '#ee4567',
             borderColor: '#fff',
             borderWidth: 2,
           },
