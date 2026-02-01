@@ -15,7 +15,6 @@ import type {
   NightOwlAnalysis,
   DragonKingAnalysis,
   DivingAnalysis,
-  MonologueAnalysis,
   MentionAnalysis,
   LaughAnalysis,
   CheckInAnalysis,
@@ -255,16 +254,6 @@ export const chatApi = {
    */
   getDivingAnalysis: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<DivingAnalysis> => {
     return ipcRenderer.invoke('chat:getDivingAnalysis', sessionId, filter)
-  },
-
-  /**
-   * 获取自言自语分析数据
-   */
-  getMonologueAnalysis: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<MonologueAnalysis> => {
-    return ipcRenderer.invoke('chat:getMonologueAnalysis', sessionId, filter)
   },
 
   /**
