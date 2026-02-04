@@ -242,15 +242,6 @@ async function openAiLogFile() {
         <UIcon name="i-heroicons-folder-open" class="h-3.5 w-3.5" />
         <span>{{ t('log.label') }}</span>
       </button>
-      <!-- 配置状态 -->
-      <div
-        v-if="!isCheckingConfig"
-        class="flex items-center gap-1.5 text-xs transition-colors"
-        :class="[hasLLMConfig ? 'text-gray-400' : 'text-amber-500 font-medium']"
-      >
-        <span class="h-1.5 w-1.5 rounded-full" :class="[hasLLMConfig ? 'bg-green-500' : 'bg-amber-500']" />
-        {{ hasLLMConfig ? t('status.connected') : t('status.notConfigured') }}
-      </div>
     </div>
   </div>
 </template>
@@ -266,7 +257,7 @@ async function openAiLogFile() {
     },
     "model": {
       "title": "AI 模型配置",
-      "notConfigured": "未配置",
+      "notConfigured": "AI 未配置",
       "empty": "暂无配置",
       "manage": "管理配置",
       "switchFailed": "切换模型失败"
@@ -296,7 +287,7 @@ async function openAiLogFile() {
     },
     "model": {
       "title": "AI Model Configs",
-      "notConfigured": "Not Configured",
+      "notConfigured": "AI Not Configured",
       "empty": "No configs",
       "manage": "Manage Configs",
       "switchFailed": "Failed to switch model"
