@@ -1,6 +1,6 @@
 ---
 name: sync-changelog
-description: 将 docs/changelogs_cn.json 的当前版本日志生成适合英文母语者阅读的英文版本，更新 docs/changelogs_en.json，并在当前项目创建 release 提交；随后同步中英文 changelog 到同级仓库 ../chatlab.fun 并创建文档提交。用于用户提出“同步版本日志”“生成并同步 changelog”“发布前同步中英文日志”等请求。仅创建 commit，不执行 push。
+description: 将 docs/changelogs_cn.json 的当前版本日志生成适合英文母语者阅读的英文版本，更新 docs/changelogs_en.json，并在当前项目创建 release 提交（包含 package.json 与中英文 changelog）；随后同步中英文 changelog 到同级仓库 ../chatlab.fun 并创建文档提交。用于用户提出“同步版本日志”“生成并同步 changelog”“发布前同步中英文日志”等请求。仅创建 commit，不执行 push。
 ---
 
 # sync-changelog
@@ -50,6 +50,7 @@ scripts/preflight_main_clean.sh . "package.json,docs/changelogs_cn.json"
 ## 4. 在当前仓库创建发布提交
 
 1. 提交文件必须包含：
+   - `package.json`
    - `docs/changelogs_cn.json`
    - `docs/changelogs_en.json`
 2. commit message：`release: v<version>`（示例：`release: v0.9.6`）。

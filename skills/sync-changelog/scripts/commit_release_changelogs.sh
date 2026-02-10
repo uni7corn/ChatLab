@@ -11,9 +11,10 @@ fi
 
 CN_FILE="$REPO_PATH/docs/changelogs_cn.json"
 EN_FILE="$REPO_PATH/docs/changelogs_en.json"
+PKG_FILE="$REPO_PATH/package.json"
 
-if [[ ! -f "$CN_FILE" || ! -f "$EN_FILE" ]]; then
-  echo "错误: changelog 文件不存在，无法提交" >&2
+if [[ ! -f "$CN_FILE" || ! -f "$EN_FILE" || ! -f "$PKG_FILE" ]]; then
+  echo "错误: changelog 或 package.json 不存在，无法提交" >&2
   exit 1
 fi
 
@@ -23,8 +24,9 @@ if [[ -z "$VERSION" ]]; then
   exit 1
 fi
 
-# 仅暂存指定文件，避免误提交其他改动。
-git -C "$REPO_PATH" add docs/changelogs_cn.json docs/changelogs_en.json
+# 仅暂存发布必需文件，避免误提交其他改动。
+# 注意：package.json 中的版本号需要和 release 提交一起落盘。
+git -C "$REPO_PATH" add package.json docs/changelogs_cn.json docs/changelogs_en.json
 
 # 若没有差异则不提交，避免空提交失败。
 if git -C "$REPO_PATH" diff --cached --quiet; then
