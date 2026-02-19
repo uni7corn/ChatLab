@@ -35,6 +35,7 @@ export default defineConfig(() => {
         alias: {
           '@': resolve('src/'),
           '~': resolve('src/'),
+          '@openchatlab': resolve('packages'),
         },
       },
       plugins: [

@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { MemeBattleAnalysis } from '@/types/analysis'
+import type { MemeBattleAnalysis } from '../types'
 import { EChartRank } from '@/components/charts'
 import type { RankItem } from '@/components/charts'
-import { EChartBattleRank } from './charts'
 import { LoadingState, Tabs, SectionCard, TopNSelect } from '@/components/UI'
+import { EChartBattleRank } from '../charts'
+import { queryMemeBattleAnalysis } from '../queries'
 
 interface TimeFilter {
   startTs?: number
@@ -44,7 +45,7 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await window.chatApi.getMemeBattleAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await queryMemeBattleAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载斗图分析失败:', error)
   } finally {

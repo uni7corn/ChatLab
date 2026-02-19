@@ -63,19 +63,13 @@ const tabs = computed(() => allTabs)
 const activeTab = ref((route.query.tab as string) || 'overview')
 
 // 时间范围筛选（composable 统一管理状态、派生计算、URL 同步）
-const {
-  timeRangeValue,
-  fullTimeRange,
-  availableYears,
-  timeFilter,
-  selectedYearForOverview,
-  initialTimeState,
-} = useTimeSelect(route, router, {
-  activeTab,
-  isInitialLoad,
-  currentSessionId,
-  onTimeRangeChange: () => loadAnalysisData(),
-})
+const { timeRangeValue, fullTimeRange, availableYears, timeFilter, selectedYearForOverview, initialTimeState } =
+  useTimeSelect(route, router, {
+    activeTab,
+    isInitialLoad,
+    currentSessionId,
+    onTimeRangeChange: () => loadAnalysisData(),
+  })
 
 // 计算属性
 const topMembers = computed(() => memberActivity.value.slice(0, 3))
@@ -294,9 +288,6 @@ onMounted(() => {
               :key="'view-' + currentSessionId"
               :session-id="currentSessionId!"
               :time-filter="timeFilter"
-              :member-activity="memberActivity"
-              :selected-year="selectedYearForOverview ?? undefined"
-              :available-years="availableYears"
             />
             <QuotesTab
               v-else-if="activeTab === 'quotes'"

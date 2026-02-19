@@ -7,15 +7,9 @@ import type {
   DailyActivity,
   WeekdayActivity,
   MonthlyActivity,
-  RepeatAnalysis,
   CatchphraseAnalysis,
-  NightOwlAnalysis,
-  DragonKingAnalysis,
-  DivingAnalysis,
   MentionAnalysis,
   LaughAnalysis,
-  MemeBattleAnalysis,
-  CheckInAnalysis,
   MemberWithStats,
   ClusterGraphData,
   ClusterGraphOptions,
@@ -141,17 +135,11 @@ interface ChatApi {
   getDbDirectory: () => Promise<string | null>
   getSupportedFormats: () => Promise<Array<{ name: string; platform: string }>>
   onImportProgress: (callback: (progress: ImportProgress) => void) => () => void
-  getRepeatAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<RepeatAnalysis>
   getCatchphraseAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<CatchphraseAnalysis>
-  getNightOwlAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<NightOwlAnalysis>
-  getDragonKingAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<DragonKingAnalysis>
-  getDivingAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<DivingAnalysis>
   getMentionAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<MentionAnalysis>
   getMentionGraph: (sessionId: string, filter?: TimeFilter) => Promise<MentionGraphData>
   getClusterGraph: (sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions) => Promise<ClusterGraphData>
   getLaughAnalysis: (sessionId: string, filter?: TimeFilter, keywords?: string[]) => Promise<LaughAnalysis>
-  getMemeBattleAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<MemeBattleAnalysis>
-  getCheckInAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<CheckInAnalysis>
   // 成员管理
   getMembers: (sessionId: string) => Promise<MemberWithStats[]>
   getMembersPaginated: (
@@ -166,6 +154,9 @@ interface ChatApi {
   }>
   updateMemberAliases: (sessionId: string, memberId: number, aliases: string[]) => Promise<boolean>
   deleteMember: (sessionId: string, memberId: number) => Promise<boolean>
+  // 插件系统
+  pluginQuery: <T = Record<string, any>>(sessionId: string, sql: string, params?: any[]) => Promise<T[]>
+  pluginCompute: <T = any>(fnString: string, input: any) => Promise<T>
   // SQL 实验室
   getSchema: (sessionId: string) => Promise<TableSchema[]>
   executeSQL: (sessionId: string, sql: string) => Promise<SQLResult>

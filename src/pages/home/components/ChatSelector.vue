@@ -71,9 +71,7 @@ function getChatTypeIcon(type: string): string {
 
 /** 格式化类型标签：去下划线、首字母大写 */
 function formatTypeLabel(type: string): string {
-  return type
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
+  return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
 // ==================== 扫描逻辑 ====================
@@ -195,9 +193,7 @@ function handleClose() {
               <div
                 class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
                 :class="
-                  selectedIndexes.has(chat.index)
-                    ? 'bg-pink-100 dark:bg-pink-500/20'
-                    : 'bg-gray-100 dark:bg-gray-700'
+                  selectedIndexes.has(chat.index) ? 'bg-pink-100 dark:bg-pink-500/20' : 'bg-gray-100 dark:bg-gray-700'
                 "
               >
                 <UIcon

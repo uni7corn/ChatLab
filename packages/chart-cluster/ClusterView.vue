@@ -1,32 +1,35 @@
 <script setup lang="ts">
 /**
- * 小团体关系视图
- * 支持两种展示模式：矩阵热力图 和 圈子视图
+ * 小团体关系视图（群聊专属）
+ * 支持三种展示模式：矩阵热力图、成员视图、排行视图
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useColorMode } from '@vueuse/core'
 import * as echarts from 'echarts/core'
 import { HeatmapChart } from 'echarts/charts'
 import { TooltipComponent, GridComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { useDark } from '@vueuse/core'
 import type { EChartsOption } from 'echarts'
-import type { ClusterGraphData, ClusterGraphOptions, ClusterGraphNode } from '@/types/analysis'
+import { loadClusterGraph } from './queries'
+import type { ClusterGraphData, ClusterGraphOptions, ClusterGraphNode } from './types'
 
 echarts.use([HeatmapChart, TooltipComponent, GridComponent, VisualMapComponent, CanvasRenderer])
-
-const { t } = useI18n()
 
 interface TimeFilter {
   startTs?: number
   endTs?: number
+  memberId?: number | null
 }
 
 const props = defineProps<{
   sessionId: string
   timeFilter?: TimeFilter
-  memberId?: number | null
 }>()
+
+const { t } = useI18n()
+const colorMode = useColorMode()
+const isDark = computed(() => colorMode.value === 'dark')
 
 // 数据状态
 const isLoading = ref(true)
@@ -48,65 +51,47 @@ const modelOptions = ref<ClusterGraphOptions>({
 // 图表引用
 const chartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
-const isDark = useDark()
 
 // 加载数据
 async function loadData() {
-  console.log('[ClusterView] loadData called', {
-    sessionId: props.sessionId,
-    viewMode: viewMode.value,
-    hasChartInstance: !!chartInstance,
-  })
   if (!props.sessionId) return
 
   isLoading.value = true
   try {
-    const filter = props.timeFilter ? { ...props.timeFilter } : undefined
-    const options = {
+    graphData.value = await loadClusterGraph(props.sessionId, props.timeFilter, {
       lookAhead: modelOptions.value.lookAhead,
       decaySeconds: modelOptions.value.decaySeconds,
       topEdges: modelOptions.value.topEdges,
-    }
-    console.log('[ClusterView] calling getClusterGraph with options', options)
-    graphData.value = await window.chatApi.getClusterGraph(props.sessionId, filter, options)
-    console.log('[ClusterView] getClusterGraph returned', {
-      nodeCount: graphData.value?.nodes?.length,
-      linkCount: graphData.value?.links?.length,
     })
   } catch (error) {
-    console.error('加载小团体关系数据失败:', error)
+    console.error('[chart-cluster] 加载小团体关系数据失败:', error)
     graphData.value = null
   } finally {
     isLoading.value = false
-    console.log('[ClusterView] loadData finished, isLoading =', isLoading.value)
   }
 }
 
 // ==================== 矩阵热力图 ====================
 
-// 构建矩阵数据
 const matrixData = computed(() => {
   if (!graphData.value || graphData.value.nodes.length === 0) return null
 
   const { nodes, links, maxLinkValue } = graphData.value
 
-  // 按消息数排序的成员名（限制数量避免过于拥挤）
   const sortedNodes = [...nodes].sort((a, b) => b.messageCount - a.messageCount).slice(0, 20)
   const names = sortedNodes.map((n) => n.name)
 
-  // 构建关系矩阵
   const linkMap = new Map<string, number>()
   for (const link of links) {
     linkMap.set(`${link.source}-${link.target}`, link.value)
     linkMap.set(`${link.target}-${link.source}`, link.value)
   }
 
-  // 生成热力图数据
   const data: Array<[number, number, number]> = []
   for (let i = 0; i < names.length; i++) {
     for (let j = 0; j < names.length; j++) {
       if (i === j) {
-        data.push([i, j, -1]) // 对角线标记为 -1
+        data.push([i, j, -1])
       } else {
         const value = linkMap.get(`${names[i]}-${names[j]}`) || 0
         data.push([i, j, value])
@@ -117,7 +102,6 @@ const matrixData = computed(() => {
   return { names, data, maxValue: maxLinkValue }
 })
 
-// 构建热力图选项
 function buildHeatmapOptions(): EChartsOption {
   if (!matrixData.value) {
     return { graphic: { type: 'text', style: { text: t('views.cluster.noData'), fill: '#999' } } }
@@ -177,7 +161,7 @@ function buildHeatmapOptions(): EChartsOption {
     series: [
       {
         type: 'heatmap',
-        data: data.filter((d) => d[2] >= 0), // 排除对角线
+        data: data.filter((d) => d[2] >= 0),
         label: { show: false },
         emphasis: {
           itemStyle: {
@@ -191,55 +175,38 @@ function buildHeatmapOptions(): EChartsOption {
   }
 }
 
-// ==================== 成员视图（选择一个人，查看所有关系） ====================
+// ==================== 成员视图 ====================
 
-// 所有参与的成员列表（按消息数排序）
 const memberList = computed(() => {
   if (!graphData.value) return []
   return [...graphData.value.nodes].sort((a, b) => b.messageCount - a.messageCount)
 })
 
-// 选中的成员信息
 const selectedMember = computed(() => {
   if (!graphData.value || selectedMemberId.value === null) return null
   return graphData.value.nodes.find((n) => n.id === selectedMemberId.value) || null
 })
 
-// 选中成员的所有关系（按分数排序）
 const selectedMemberRelations = computed(() => {
   if (!graphData.value || !selectedMember.value) return []
 
   const memberName = selectedMember.value.name
-  const relations: Array<{
-    otherName: string
-    value: number
-    coOccurrenceCount: number
-  }> = []
+  const relations: Array<{ otherName: string; value: number; coOccurrenceCount: number }> = []
 
   for (const link of graphData.value.links) {
     if (link.source === memberName) {
-      relations.push({
-        otherName: link.target,
-        value: link.value,
-        coOccurrenceCount: link.coOccurrenceCount,
-      })
+      relations.push({ otherName: link.target, value: link.value, coOccurrenceCount: link.coOccurrenceCount })
     } else if (link.target === memberName) {
-      relations.push({
-        otherName: link.source,
-        value: link.value,
-        coOccurrenceCount: link.coOccurrenceCount,
-      })
+      relations.push({ otherName: link.source, value: link.value, coOccurrenceCount: link.coOccurrenceCount })
     }
   }
 
-  // 按分数从高到低排序
   relations.sort((a, b) => b.value - a.value)
   return relations
 })
 
 // ==================== 排行视图 ====================
 
-// Top 关系排行（显示更多条目）
 const topRelations = computed(() => {
   if (!graphData.value) return []
   return graphData.value.links.slice(0, 50)
@@ -248,32 +215,15 @@ const topRelations = computed(() => {
 // ==================== 图表管理 ====================
 
 function updateChart() {
-  console.log('[ClusterView] updateChart called', {
-    hasChartInstance: !!chartInstance,
-    viewMode: viewMode.value,
-    isLoading: isLoading.value,
-  })
-  if (!chartInstance) {
-    console.log('[ClusterView] updateChart: no chartInstance, skipping')
-    return
-  }
+  if (!chartInstance) return
   if (viewMode.value === 'matrix') {
-    console.log('[ClusterView] updateChart: setting heatmap options')
     chartInstance.setOption(buildHeatmapOptions(), { notMerge: true })
   }
 }
 
 function initChart() {
-  console.log('[ClusterView] initChart called', {
-    hasChartRef: !!chartRef.value,
-    chartRefSize: chartRef.value ? { width: chartRef.value.clientWidth, height: chartRef.value.clientHeight } : null,
-  })
-  if (!chartRef.value) {
-    console.log('[ClusterView] initChart: no chartRef, skipping')
-    return
-  }
+  if (!chartRef.value) return
   chartInstance = echarts.init(chartRef.value, isDark.value ? 'dark' : undefined)
-  console.log('[ClusterView] initChart: echarts instance created')
   updateChart()
 }
 
@@ -281,33 +231,20 @@ function handleResize() {
   chartInstance?.resize()
 }
 
-// 切换视图时重新初始化图表
 watch(viewMode, async (newMode, oldMode) => {
-  console.log('[ClusterView] viewMode changed', { oldMode, newMode })
-  // 切换到非矩阵视图时，销毁图表实例
   if (oldMode === 'matrix' && chartInstance) {
-    console.log('[ClusterView] disposing chart instance')
     chartInstance.dispose()
     chartInstance = null
   }
-
-  // 切换到矩阵视图时，重新初始化
   if (newMode === 'matrix') {
     await nextTick()
-    console.log('[ClusterView] reinitializing chart after view change')
     initChart()
   }
 })
 
 watch(
-  [graphData, isDark],
+  [graphData, () => isDark.value],
   () => {
-    console.log('[ClusterView] graphData/isDark changed', {
-      hasGraphData: !!graphData.value,
-      nodeCount: graphData.value?.nodes?.length,
-      viewMode: viewMode.value,
-      isLoading: isLoading.value,
-    })
     if (viewMode.value === 'matrix') {
       updateChart()
     }
@@ -315,25 +252,19 @@ watch(
   { deep: true }
 )
 
-// 加载完成后重新初始化图表（因为 v-if 会重新创建 DOM）
 watch(isLoading, async (loading, wasLoading) => {
-  console.log('[ClusterView] isLoading changed', { wasLoading, loading, viewMode: viewMode.value })
   if (wasLoading && !loading && viewMode.value === 'matrix') {
-    // 销毁旧的图表实例（如果存在）
     if (chartInstance) {
-      console.log('[ClusterView] disposing old chart instance after loading')
       chartInstance.dispose()
       chartInstance = null
     }
-    // 等待 DOM 更新
     await nextTick()
-    console.log('[ClusterView] reinitializing chart after loading complete')
     initChart()
   }
 })
 
 watch(
-  () => [props.sessionId, props.timeFilter, props.memberId],
+  () => [props.sessionId, props.timeFilter],
   () => loadData(),
   { immediate: true, deep: true }
 )
@@ -362,7 +293,6 @@ onUnmounted(() => {
         class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50"
       >
         <div class="flex items-center gap-3">
-          <!-- 视图切换 -->
           <UButtonGroup size="xs">
             <UButton
               :color="viewMode === 'matrix' ? 'primary' : 'neutral'"
@@ -389,7 +319,6 @@ onUnmounted(() => {
         </div>
 
         <div class="flex items-center gap-3">
-          <!-- 参数设置 -->
           <UPopover>
             <UButton variant="ghost" size="xs" icon="i-heroicons-adjustments-horizontal" />
             <template #content>
@@ -427,20 +356,16 @@ onUnmounted(() => {
               </div>
             </template>
           </UPopover>
-
-          <!-- 刷新 -->
           <UButton variant="ghost" size="xs" icon="i-heroicons-arrow-path" @click="loadData" />
         </div>
       </div>
 
       <!-- 内容区域 -->
       <div class="flex-1 min-h-0 overflow-hidden">
-        <!-- 加载中 -->
         <div v-if="isLoading" class="h-full flex items-center justify-center">
           <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin text-gray-400" />
         </div>
 
-        <!-- 无数据 -->
         <div v-else-if="!graphData || graphData.nodes.length === 0" class="h-full flex items-center justify-center">
           <div class="text-center text-gray-400">
             <UIcon name="i-heroicons-user-group" class="w-12 h-12 mx-auto mb-2 opacity-50" />
@@ -455,7 +380,6 @@ onUnmounted(() => {
 
         <!-- 成员视图 -->
         <div v-else-if="viewMode === 'member'" class="h-full flex overflow-hidden">
-          <!-- 左侧：成员列表 -->
           <div class="w-64 border-r border-gray-200 dark:border-gray-700 flex flex-col overflow-hidden">
             <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
               <h3 class="text-sm font-medium flex items-center gap-2">
@@ -479,7 +403,6 @@ onUnmounted(() => {
             </div>
           </div>
 
-          <!-- 右侧：选中成员的关系 -->
           <div class="flex-1 overflow-hidden flex flex-col">
             <div v-if="!selectedMember" class="flex-1 flex items-center justify-center">
               <div class="text-center text-gray-400">
@@ -489,7 +412,6 @@ onUnmounted(() => {
             </div>
 
             <template v-else>
-              <!-- 选中成员信息 -->
               <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700 flex items-center gap-3">
                 <div
                   class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold bg-primary-500"
@@ -505,7 +427,6 @@ onUnmounted(() => {
                 </div>
               </div>
 
-              <!-- 关系排行 -->
               <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <h3 class="text-sm font-medium flex items-center gap-2">
                   <UIcon name="i-heroicons-heart" class="w-4 h-4 text-pink-500" />
@@ -543,7 +464,6 @@ onUnmounted(() => {
                         </span>
                       </div>
                     </div>
-                    <!-- 亲密度条（以最高分为100%基准） -->
                     <div class="w-20 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                       <div
                         class="h-full bg-linear-to-r from-pink-400 to-pink-600"
@@ -597,7 +517,6 @@ onUnmounted(() => {
                     </span>
                   </div>
                 </div>
-                <!-- 临近度条（以最高分为100%基准） -->
                 <div class="w-24 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
                   <div
                     class="h-full bg-linear-to-r from-yellow-400 to-orange-500"

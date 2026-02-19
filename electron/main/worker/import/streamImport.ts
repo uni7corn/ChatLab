@@ -173,9 +173,7 @@ async function streamImportWithFallback(
     const candidate = candidates[i]
     const isLast = i === candidates.length - 1
 
-    console.log(
-      `[StreamImport] Trying format ${i + 1}/${candidates.length}: ${candidate.name} (${candidate.id})`
-    )
+    console.log(`[StreamImport] Trying format ${i + 1}/${candidates.length}: ${candidate.name} (${candidate.id})`)
 
     const result = await streamImportSingle(filePath, requestId, candidate, formatOptions)
 
@@ -194,9 +192,7 @@ async function streamImportWithFallback(
     }
 
     // 当前格式解析失败（0 消息），尝试下一个
-    console.log(
-      `[StreamImport] Format ${candidate.name} produced 0 messages, falling back to next candidate...`
-    )
+    console.log(`[StreamImport] Format ${candidate.name} produced 0 messages, falling back to next candidate...`)
   }
 
   // 不应该到这里，但以防万一
@@ -380,218 +376,222 @@ async function streamImportSingle(
   logInfo('Starting streamParseFile...')
 
   try {
-    await streamParseFile(actualFilePath, {
-      batchSize: 5000,
-      formatOptions,
+    await streamParseFile(
+      actualFilePath,
+      {
+        batchSize: 5000,
+        formatOptions,
 
-      onProgress: (progress) => {
-        callbackStats.onProgressCalls++
-        // 转发进度到主进程
-        sendProgress(requestId, progress)
-      },
+        onProgress: (progress) => {
+          callbackStats.onProgressCalls++
+          // 转发进度到主进程
+          sendProgress(requestId, progress)
+        },
 
-      onLog: (level, message) => {
-        callbackStats.onLogCalls++
-        // 将解析器日志写入导入日志文件
-        if (level === 'error') {
-          logError(message)
-        } else {
-          logInfo(message)
-        }
-      },
-
-      onMeta: (meta: ParsedMeta) => {
-        callbackStats.onMetaCalls++
-        if (!metaInserted) {
-          logInfo(`Writing meta: name=${meta.name}, type=${meta.type}, platform=${meta.platform}`)
-          insertMeta.run(
-            meta.name,
-            meta.platform,
-            meta.type,
-            Math.floor(Date.now() / 1000),
-            meta.groupId || null,
-            meta.groupAvatar || null,
-            meta.ownerId || null
-          )
-          metaInserted = true
-        }
-      },
-
-      onMembers: (members: ParsedMember[]) => {
-        callbackStats.onMembersCalls++
-        callbackStats.totalMembersReceived += members.length
-        logInfo(`Received member batch: ${members.length} members`)
-        for (const member of members) {
-          insertMember.run(
-            member.platformId,
-            member.accountName || null,
-            member.groupNickname || null,
-            member.avatar || null,
-            member.roles ? JSON.stringify(member.roles) : '[]'
-          )
-          const row = getMemberId.get(member.platformId) as { id: number } | undefined
-          if (row) {
-            memberIdMap.set(member.platformId, row.id)
+        onLog: (level, message) => {
+          callbackStats.onLogCalls++
+          // 将解析器日志写入导入日志文件
+          if (level === 'error') {
+            logError(message)
+          } else {
+            logInfo(message)
           }
-        }
-      },
+        },
 
-      onMessageBatch: (messages: ParsedMessage[]) => {
-        callbackStats.onMessageBatchCalls++
-        callbackStats.totalMessagesReceived += messages.length
-        // 每收到 10 批消息记录一次日志
-        if (callbackStats.onMessageBatchCalls <= 3 || callbackStats.onMessageBatchCalls % 10 === 0) {
-          logInfo(`Received message batch #${callbackStats.onMessageBatchCalls}: ${messages.length} messages`)
-        }
+        onMeta: (meta: ParsedMeta) => {
+          callbackStats.onMetaCalls++
+          if (!metaInserted) {
+            logInfo(`Writing meta: name=${meta.name}, type=${meta.type}, platform=${meta.platform}`)
+            insertMeta.run(
+              meta.name,
+              meta.platform,
+              meta.type,
+              Math.floor(Date.now() / 1000),
+              meta.groupId || null,
+              meta.groupAvatar || null,
+              meta.ownerId || null
+            )
+            metaInserted = true
+          }
+        },
 
-        // 分阶段计时
-        let memberLookupTime = 0
-        let memberInsertTime = 0
-        let messageInsertTime = 0
-        let nicknameTrackTime = 0
-        let memberLookupCount = 0
-        let memberInsertCount = 0
-        let nicknameChangeCount = 0
-
-        for (const msg of messages) {
-          // 数据验证：跳过无效消息（带统计）
-          if (!msg.senderPlatformId) {
-            callbackStats.skippedNoSenderId++
-            continue
-          }
-          if (!msg.senderAccountName) {
-            callbackStats.skippedNoAccountName++
-            continue
-          }
-          if (msg.timestamp === undefined || msg.timestamp === null || isNaN(msg.timestamp)) {
-            callbackStats.skippedInvalidTimestamp++
-            continue
-          }
-          if (msg.type === undefined || msg.type === null) {
-            callbackStats.skippedNoType++
-            continue
-          }
-
-          // 确保成员存在
-          let t0 = Date.now()
-          if (!memberIdMap.has(msg.senderPlatformId)) {
-            // 消息中没有头像和角色信息，设为默认值
+        onMembers: (members: ParsedMember[]) => {
+          callbackStats.onMembersCalls++
+          callbackStats.totalMembersReceived += members.length
+          logInfo(`Received member batch: ${members.length} members`)
+          for (const member of members) {
             insertMember.run(
-              msg.senderPlatformId,
+              member.platformId,
+              member.accountName || null,
+              member.groupNickname || null,
+              member.avatar || null,
+              member.roles ? JSON.stringify(member.roles) : '[]'
+            )
+            const row = getMemberId.get(member.platformId) as { id: number } | undefined
+            if (row) {
+              memberIdMap.set(member.platformId, row.id)
+            }
+          }
+        },
+
+        onMessageBatch: (messages: ParsedMessage[]) => {
+          callbackStats.onMessageBatchCalls++
+          callbackStats.totalMessagesReceived += messages.length
+          // 每收到 10 批消息记录一次日志
+          if (callbackStats.onMessageBatchCalls <= 3 || callbackStats.onMessageBatchCalls % 10 === 0) {
+            logInfo(`Received message batch #${callbackStats.onMessageBatchCalls}: ${messages.length} messages`)
+          }
+
+          // 分阶段计时
+          let memberLookupTime = 0
+          let memberInsertTime = 0
+          let messageInsertTime = 0
+          let nicknameTrackTime = 0
+          let memberLookupCount = 0
+          let memberInsertCount = 0
+          let nicknameChangeCount = 0
+
+          for (const msg of messages) {
+            // 数据验证：跳过无效消息（带统计）
+            if (!msg.senderPlatformId) {
+              callbackStats.skippedNoSenderId++
+              continue
+            }
+            if (!msg.senderAccountName) {
+              callbackStats.skippedNoAccountName++
+              continue
+            }
+            if (msg.timestamp === undefined || msg.timestamp === null || isNaN(msg.timestamp)) {
+              callbackStats.skippedInvalidTimestamp++
+              continue
+            }
+            if (msg.type === undefined || msg.type === null) {
+              callbackStats.skippedNoType++
+              continue
+            }
+
+            // 确保成员存在
+            let t0 = Date.now()
+            if (!memberIdMap.has(msg.senderPlatformId)) {
+              // 消息中没有头像和角色信息，设为默认值
+              insertMember.run(
+                msg.senderPlatformId,
+                msg.senderAccountName || null,
+                msg.senderGroupNickname || null,
+                null,
+                '[]'
+              )
+              const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
+              if (row) {
+                memberIdMap.set(msg.senderPlatformId, row.id)
+              }
+              memberInsertCount++
+              memberInsertTime += Date.now() - t0
+            } else {
+              memberLookupCount++
+              memberLookupTime += Date.now() - t0
+            }
+
+            const senderId = memberIdMap.get(msg.senderPlatformId)
+            if (senderId === undefined) continue
+
+            // 插入消息
+            // 防御性处理：确保所有值都是 SQLite 兼容的类型
+            // SQLite 只支持: numbers, strings, bigints, buffers, null
+            let safeContent: string | null = null
+            if (msg.content != null) {
+              safeContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
+            }
+
+            t0 = Date.now()
+            insertMessage.run(
+              senderId,
               msg.senderAccountName || null,
               msg.senderGroupNickname || null,
-              null,
-              '[]'
+              msg.timestamp,
+              msg.type,
+              safeContent,
+              msg.replyToMessageId || null,
+              msg.platformMessageId || null
             )
-            const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
-            if (row) {
-              memberIdMap.set(msg.senderPlatformId, row.id)
+            messageInsertTime += Date.now() - t0
+            messageCountInBatch++
+            totalMessageCount++
+
+            // 追踪昵称变化（仅记录，不写入数据库，最后批量处理）
+            t0 = Date.now()
+
+            // 追踪 account_name 变化
+            const accountName = msg.senderAccountName
+            if (accountName && accountName !== msg.senderPlatformId) {
+              const tracker = accountNameTracker.get(msg.senderPlatformId)
+              if (!tracker) {
+                accountNameTracker.set(msg.senderPlatformId, {
+                  currentName: accountName,
+                  lastSeenTs: msg.timestamp,
+                  history: [{ name: accountName, startTs: msg.timestamp }],
+                })
+                nicknameChangeCount++
+              } else if (tracker.currentName !== accountName) {
+                tracker.history.push({ name: accountName, startTs: msg.timestamp })
+                tracker.currentName = accountName
+                tracker.lastSeenTs = msg.timestamp
+                nicknameChangeCount++
+              } else {
+                tracker.lastSeenTs = msg.timestamp
+              }
             }
-            memberInsertCount++
-            memberInsertTime += Date.now() - t0
-          } else {
-            memberLookupCount++
-            memberLookupTime += Date.now() - t0
-          }
 
-          const senderId = memberIdMap.get(msg.senderPlatformId)
-          if (senderId === undefined) continue
-
-          // 插入消息
-          // 防御性处理：确保所有值都是 SQLite 兼容的类型
-          // SQLite 只支持: numbers, strings, bigints, buffers, null
-          let safeContent: string | null = null
-          if (msg.content != null) {
-            safeContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
-          }
-
-          t0 = Date.now()
-          insertMessage.run(
-            senderId,
-            msg.senderAccountName || null,
-            msg.senderGroupNickname || null,
-            msg.timestamp,
-            msg.type,
-            safeContent,
-            msg.replyToMessageId || null,
-            msg.platformMessageId || null
-          )
-          messageInsertTime += Date.now() - t0
-          messageCountInBatch++
-          totalMessageCount++
-
-          // 追踪昵称变化（仅记录，不写入数据库，最后批量处理）
-          t0 = Date.now()
-
-          // 追踪 account_name 变化
-          const accountName = msg.senderAccountName
-          if (accountName && accountName !== msg.senderPlatformId) {
-            const tracker = accountNameTracker.get(msg.senderPlatformId)
-            if (!tracker) {
-              accountNameTracker.set(msg.senderPlatformId, {
-                currentName: accountName,
-                lastSeenTs: msg.timestamp,
-                history: [{ name: accountName, startTs: msg.timestamp }],
-              })
-              nicknameChangeCount++
-            } else if (tracker.currentName !== accountName) {
-              tracker.history.push({ name: accountName, startTs: msg.timestamp })
-              tracker.currentName = accountName
-              tracker.lastSeenTs = msg.timestamp
-              nicknameChangeCount++
-            } else {
-              tracker.lastSeenTs = msg.timestamp
+            // 追踪 group_nickname 变化
+            const groupNickname = msg.senderGroupNickname
+            if (groupNickname) {
+              const tracker = groupNicknameTracker.get(msg.senderPlatformId)
+              if (!tracker) {
+                groupNicknameTracker.set(msg.senderPlatformId, {
+                  currentName: groupNickname,
+                  lastSeenTs: msg.timestamp,
+                  history: [{ name: groupNickname, startTs: msg.timestamp }],
+                })
+                nicknameChangeCount++
+              } else if (tracker.currentName !== groupNickname) {
+                tracker.history.push({ name: groupNickname, startTs: msg.timestamp })
+                tracker.currentName = groupNickname
+                tracker.lastSeenTs = msg.timestamp
+                nicknameChangeCount++
+              } else {
+                tracker.lastSeenTs = msg.timestamp
+              }
             }
-          }
 
-          // 追踪 group_nickname 变化
-          const groupNickname = msg.senderGroupNickname
-          if (groupNickname) {
-            const tracker = groupNicknameTracker.get(msg.senderPlatformId)
-            if (!tracker) {
-              groupNicknameTracker.set(msg.senderPlatformId, {
-                currentName: groupNickname,
-                lastSeenTs: msg.timestamp,
-                history: [{ name: groupNickname, startTs: msg.timestamp }],
-              })
-              nicknameChangeCount++
-            } else if (tracker.currentName !== groupNickname) {
-              tracker.history.push({ name: groupNickname, startTs: msg.timestamp })
-              tracker.currentName = groupNickname
-              tracker.lastSeenTs = msg.timestamp
-              nicknameChangeCount++
-            } else {
-              tracker.lastSeenTs = msg.timestamp
+            nicknameTrackTime += Date.now() - t0
+
+            // 分批提交（每 50000 条）
+            if (messageCountInBatch >= BATCH_COMMIT_SIZE) {
+              // 记录详细分阶段耗时
+              const detail =
+                `[Detail] Member lookup: ${memberLookupTime}ms (${memberLookupCount} times) | ` +
+                `Member insert: ${memberInsertTime}ms (${memberInsertCount} times) | ` +
+                `Message insert: ${messageInsertTime}ms | ` +
+                `Nickname tracking: ${nicknameTrackTime}ms (${nicknameChangeCount} changes)`
+              logPerfDetail(detail)
+
+              commitAndBeginNew()
+              messageCountInBatch = 0
+
+              // 重置计时
+              memberLookupTime = 0
+              memberInsertTime = 0
+              messageInsertTime = 0
+              nicknameTrackTime = 0
+              memberLookupCount = 0
+              memberInsertCount = 0
+              nicknameChangeCount = 0
             }
           }
-
-          nicknameTrackTime += Date.now() - t0
-
-          // 分批提交（每 50000 条）
-          if (messageCountInBatch >= BATCH_COMMIT_SIZE) {
-            // 记录详细分阶段耗时
-            const detail =
-              `[Detail] Member lookup: ${memberLookupTime}ms (${memberLookupCount} times) | ` +
-              `Member insert: ${memberInsertTime}ms (${memberInsertCount} times) | ` +
-              `Message insert: ${messageInsertTime}ms | ` +
-              `Nickname tracking: ${nicknameTrackTime}ms (${nicknameChangeCount} changes)`
-            logPerfDetail(detail)
-
-            commitAndBeginNew()
-            messageCountInBatch = 0
-
-            // 重置计时
-            memberLookupTime = 0
-            memberInsertTime = 0
-            messageInsertTime = 0
-            nicknameTrackTime = 0
-            memberLookupCount = 0
-            memberInsertCount = 0
-            nicknameChangeCount = 0
-          }
-        }
+        },
       },
-    }, formatFeature.id)
+      formatFeature.id
+    )
 
     // 提交最后的消息事务
     if (inTransaction) {

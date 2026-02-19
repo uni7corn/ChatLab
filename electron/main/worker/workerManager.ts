@@ -122,7 +122,7 @@ export function initWorker(): void {
 /**
  * 发送消息到 Worker 并等待响应
  */
-function sendToWorker<T>(type: string, payload: any, timeoutMs: number = 30000): Promise<T> {
+function sendToWorker<T>(type: string, payload: any, timeoutMs: number = 60000): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!worker) {
       try {
@@ -228,6 +228,28 @@ export async function query<T = any>(type: string, payload: any): Promise<T> {
   return sendToWorker<T>(type, payload)
 }
 
+// ==================== 插件系统 API ====================
+
+/**
+ * 插件参数化只读 SQL 查询
+ * 超时设为 120s，因为多个 pluginQuery 可能在 Worker 队列中排队等待
+ */
+export async function pluginQuery<T = Record<string, any>>(
+  sessionId: string,
+  sql: string,
+  params: any[] = []
+): Promise<T[]> {
+  return sendToWorker('pluginQuery', { sessionId, sql, params }, 120000)
+}
+
+/**
+ * 插件计算卸载（纯函数在 Worker 中执行）
+ * 超时设为 120s，因为计算密集型任务 + 排队等待可能较长
+ */
+export async function pluginCompute<TOutput = any>(fnString: string, input: any): Promise<TOutput> {
+  return sendToWorker('pluginCompute', { fnString, input }, 120000)
+}
+
 // ==================== 导出的异步 API ====================
 
 export async function getAvailableYears(sessionId: string): Promise<number[]> {
@@ -274,24 +296,8 @@ export async function getMemberNameHistory(sessionId: string, memberId: number):
   return sendToWorker('getMemberNameHistory', { sessionId, memberId })
 }
 
-export async function getRepeatAnalysis(sessionId: string, filter?: any): Promise<any> {
-  return sendToWorker('getRepeatAnalysis', { sessionId, filter })
-}
-
 export async function getCatchphraseAnalysis(sessionId: string, filter?: any): Promise<any> {
   return sendToWorker('getCatchphraseAnalysis', { sessionId, filter })
-}
-
-export async function getNightOwlAnalysis(sessionId: string, filter?: any): Promise<any> {
-  return sendToWorker('getNightOwlAnalysis', { sessionId, filter })
-}
-
-export async function getDragonKingAnalysis(sessionId: string, filter?: any): Promise<any> {
-  return sendToWorker('getDragonKingAnalysis', { sessionId, filter })
-}
-
-export async function getDivingAnalysis(sessionId: string, filter?: any): Promise<any> {
-  return sendToWorker('getDivingAnalysis', { sessionId, filter })
 }
 
 export async function getMentionAnalysis(sessionId: string, filter?: any): Promise<any> {
@@ -308,14 +314,6 @@ export async function getLaughAnalysis(sessionId: string, filter?: any, keywords
 
 export async function getClusterGraph(sessionId: string, filter?: any, options?: any): Promise<any> {
   return sendToWorker('getClusterGraph', { sessionId, filter, options })
-}
-
-export async function getMemeBattleAnalysis(sessionId: string, filter?: any): Promise<any> {
-  return sendToWorker('getMemeBattleAnalysis', { sessionId, filter })
-}
-
-export async function getCheckInAnalysis(sessionId: string, filter?: any): Promise<any> {
-  return sendToWorker('getCheckInAnalysis', { sessionId, filter })
 }
 
 export async function getAllSessions(): Promise<any[]> {

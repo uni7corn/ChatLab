@@ -60,18 +60,16 @@ const tabs = [
 const activeTab = ref((route.query.tab as string) || 'overview')
 
 // 时间范围筛选（composable 统一管理状态、派生计算、URL 同步）
-const {
-  timeRangeValue,
-  fullTimeRange,
-  timeFilter,
-  selectedYearForOverview,
-  initialTimeState,
-} = useTimeSelect(route, router, {
-  activeTab,
-  isInitialLoad,
-  currentSessionId,
-  onTimeRangeChange: () => loadAnalysisData(),
-})
+const { timeRangeValue, fullTimeRange, timeFilter, selectedYearForOverview, initialTimeState } = useTimeSelect(
+  route,
+  router,
+  {
+    activeTab,
+    isInitialLoad,
+    currentSessionId,
+    onTimeRangeChange: () => loadAnalysisData(),
+  }
+)
 
 // 当前筛选后的消息总数
 const filteredMessageCount = computed(() => {

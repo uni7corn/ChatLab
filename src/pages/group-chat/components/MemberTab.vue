@@ -2,10 +2,10 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SubTabs } from '@/components/UI'
-import { ClusterView } from '@/components/view'
 import MemberList from './member/MemberList.vue'
 import NicknameHistory from './member/NicknameHistory.vue'
 import Relationships from './member/Relationships.vue'
+import ClusterView from '@openchatlab/chart-cluster/ClusterView.vue'
 
 const { t } = useI18n()
 
@@ -14,13 +14,11 @@ interface TimeFilter {
   endTs?: number
 }
 
-// Props
 const props = defineProps<{
   sessionId: string
   timeFilter?: TimeFilter
 }>()
 
-// Emits
 const emit = defineEmits<{
   'data-changed': []
 }>()
@@ -49,7 +47,11 @@ function handleDataChanged() {
     <div class="flex-1 min-h-0 overflow-auto">
       <Transition name="fade" mode="out-in">
         <!-- 成员列表 -->
-        <MemberList v-if="activeSubTab === 'list'" :session-id="props.sessionId" @data-changed="handleDataChanged" />
+        <MemberList
+          v-if="activeSubTab === 'list'"
+          :session-id="props.sessionId"
+          @data-changed="handleDataChanged"
+        />
 
         <!-- 群关系 -->
         <Relationships

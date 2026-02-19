@@ -3,14 +3,8 @@
  * 统一导出所有分析函数
  */
 
-// 复读 + 口头禅分析
-export { getRepeatAnalysis, getCatchphraseAnalysis } from './repeat'
-
-// 活跃度分析：夜猫、龙王、潜水、打卡
-export { getNightOwlAnalysis, getDragonKingAnalysis, getDivingAnalysis, getCheckInAnalysis } from './activity'
-
-// 行为分析：斗图
-export { getMemeBattleAnalysis } from './behavior'
+// 口头禅分析
+export { getCatchphraseAnalysis } from './repeat'
 
 // 社交分析：@ 互动、含笑量、小团体
 export { getMentionAnalysis, getMentionGraph, getLaughAnalysis, getClusterGraph } from './social'

@@ -78,7 +78,7 @@ export const feature: FormatFeature = {
  */
 function cleanLine(line: string): string {
   // 移除常见的不可见字符：BOM、LTR Mark、RTL Mark、零宽字符等
-  return line.replace(/^[\uFEFF\u200E\u200F\u200B\u200C\u200D\u2060]+/, '').trim()
+  return line.replace(/^(?:\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)+/, '').trim()
 }
 
 // ==================== 消息头正则 ====================
@@ -162,9 +162,7 @@ function parseWhatsAppTime(timeStr: string, isV2Format: boolean = false): number
   if (isV2Format) {
     // 方括号格式：先移除可能的逗号
     const normalizedStr = timeStr.replace(',', '')
-    const match = normalizedStr.match(
-      /^(\d{1,4})\/(\d{1,2})\/(\d{2,4}) (\d{1,2}):(\d{2}):(\d{2})$/
-    )
+    const match = normalizedStr.match(/^(\d{1,4})\/(\d{1,2})\/(\d{2,4}) (\d{1,2}):(\d{2}):(\d{2})$/)
     if (match) {
       const [, part1, part2, part3, hour, minute, second] = match
       let year: number, month: number, day: number
@@ -186,14 +184,7 @@ function parseWhatsAppTime(timeStr: string, isV2Format: boolean = false): number
         year = 2000 + parseInt(part3, 10)
       }
 
-      const date = new Date(
-        year,
-        month - 1,
-        day,
-        parseInt(hour, 10),
-        parseInt(minute, 10),
-        parseInt(second, 10)
-      )
+      const date = new Date(year, month - 1, day, parseInt(hour, 10), parseInt(minute, 10), parseInt(second, 10))
       return Math.floor(date.getTime() / 1000)
     }
   }

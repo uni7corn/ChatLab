@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { DivingAnalysis } from '@/types/analysis'
-import { EChartDivingRank } from './charts'
+import type { DivingAnalysis } from '../types'
+import { EChartDivingRank } from '../charts'
 import { LoadingState } from '@/components/UI'
+import { queryDivingAnalysis } from '../queries'
 
 interface TimeFilter {
   startTs?: number
@@ -23,7 +24,7 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await window.chatApi.getDivingAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await queryDivingAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载潜水分析失败:', error)
   } finally {

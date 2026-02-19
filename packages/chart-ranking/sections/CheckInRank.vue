@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { CheckInAnalysis } from '@/types/analysis'
-import { EChartStreakRank } from './charts'
+import type { CheckInAnalysis } from '../types'
+import { EChartStreakRank } from '../charts'
 import { SectionCard, LoadingState, EmptyState, Tabs, TopNSelect } from '@/components/UI'
+import { queryCheckInAnalysis } from '../queries'
 
 interface TimeFilter {
   startTs?: number
@@ -54,7 +55,7 @@ async function loadAnalysis() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await window.chatApi.getCheckInAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await queryCheckInAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载打卡分析失败:', error)
   } finally {

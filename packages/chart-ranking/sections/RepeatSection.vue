@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { RepeatAnalysis } from '@/types/analysis'
+import type { RepeatAnalysis } from '../types'
 import { EChartRank, EChartBar } from '@/components/charts'
 import type { RankItem, EChartBarData } from '@/components/charts'
-import { EChartTimeRank } from './charts'
 import { SectionCard, EmptyState, LoadingState, Tabs, TopNSelect } from '@/components/UI'
+import { EChartTimeRank } from '../charts'
+import { queryRepeatAnalysis } from '../queries'
 
 interface TimeFilter {
   startTs?: number
@@ -47,7 +48,7 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await window.chatApi.getRepeatAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await queryRepeatAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载复读分析失败:', error)
   } finally {

@@ -646,7 +646,10 @@ export async function* chatStream(messages: ChatMessage[], options?: ChatOptions
     const errorInfo = extractErrorInfo(error)
     const errorStr = `${errorInfo.name || 'Error'}: ${errorInfo.message}`
 
-    aiLogger.error('LLM', `Stream request failed | config: ${configStr} | received: ${chunkCount} chunks/${totalContent.length} chars`)
+    aiLogger.error(
+      'LLM',
+      `Stream request failed | config: ${configStr} | received: ${chunkCount} chunks/${totalContent.length} chars`
+    )
     aiLogger.error('LLM', `Error: ${errorStr}`)
 
     // 堆栈单独一行

@@ -2,11 +2,11 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SubTabs } from '@/components/UI'
-import { MessageView, InteractionView } from '@/components/view'
 import UserSelect from '@/components/common/UserSelect.vue'
-import RankingTab from './RankingTab.vue'
+import MessageView from '@openchatlab/chart-message/MessageView.vue'
+import InteractionView from '@openchatlab/chart-interaction/InteractionView.vue'
+import RankingView from '@openchatlab/chart-ranking/RankingView.vue'
 import { isFeatureSupported, type LocaleType } from '@/i18n'
-import type { MemberActivity } from '@/types/analysis'
 
 const { t, locale } = useI18n()
 
@@ -15,14 +15,9 @@ interface TimeFilter {
   endTs?: number
 }
 
-// Props
 const props = defineProps<{
   sessionId: string
   timeFilter?: TimeFilter
-  // 榜单相关 props
-  memberActivity?: MemberActivity[]
-  selectedYear?: number
-  availableYears?: number[]
 }>()
 
 // 子 Tab 配置（群聊专属：包含互动分析和榜单）
@@ -42,6 +37,12 @@ const activeSubTab = ref('message')
 
 // 成员筛选
 const selectedMemberId = ref<number | null>(null)
+
+// 构建 timeFilter（含 memberId）
+const viewTimeFilter = computed(() => ({
+  ...props.timeFilter,
+  memberId: selectedMemberId.value,
+}))
 </script>
 
 <template>
@@ -59,22 +60,17 @@ const selectedMemberId = ref<number | null>(null)
         <MessageView
           v-if="activeSubTab === 'message'"
           :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :member-id="selectedMemberId"
+          :time-filter="viewTimeFilter"
         />
         <InteractionView
           v-else-if="activeSubTab === 'interaction'"
           :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :member-id="selectedMemberId"
+          :time-filter="viewTimeFilter"
         />
-        <RankingTab
+        <RankingView
           v-else-if="activeSubTab === 'ranking'"
           :session-id="props.sessionId"
-          :member-activity="props.memberActivity || []"
-          :time-filter="props.timeFilter"
-          :selected-year="props.selectedYear"
-          :available-years="props.availableYears"
+          :time-filter="viewTimeFilter"
         />
       </Transition>
     </div>

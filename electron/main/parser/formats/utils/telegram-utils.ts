@@ -127,7 +127,9 @@ export function buildContent(msg: TelegramMessage): string | null {
     const action = msg.action || ''
     const members = msg.members?.join(', ') || ''
     if (members) return `[${action}] ${members}`
-    return `[${action}]` || text || null
+    // action 为空时回退到文本，避免常量表达式触发 lint 规则。
+    if (action) return `[${action}]`
+    return text || null
   }
 
   // 贴纸：使用 emoji 表示

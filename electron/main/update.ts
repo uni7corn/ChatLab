@@ -6,6 +6,10 @@ import { getActiveProxyUrl } from './network/proxy'
 import { closeWorkerAsync } from './worker/workerManager'
 import { t } from './i18n'
 
+type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
+// 更新安装流程会主动触发退出，这里使用类型扩展存储退出标记。
+const appWithQuitFlag = app as AppWithQuitFlag
+
 // R2 镜像源 URL（速度更快，作为主要更新源）
 const R2_MIRROR_URL = 'https://chatlab.1app.top/releases/download'
 
@@ -136,7 +140,9 @@ const checkUpdate = (win) => {
     // 预发布版本仅在手动检查时显示更新弹窗
     if (isPreRelease && !isManualCheck) {
       console.log(`[Update] Pre-release version found: ${info.version}, skipping auto-update prompt`)
-      logger.info(`[Update] Pre-release version found: ${info.version}, skipping auto-update prompt (manual check required)`)
+      logger.info(
+        `[Update] Pre-release version found: ${info.version}, skipping auto-update prompt (manual check required)`
+      )
       return
     }
 
@@ -189,8 +195,7 @@ const checkUpdate = (win) => {
       .then(async (result) => {
         if (result.response === 0) {
           win.webContents.send('begin-install')
-          // @ts-ignore
-          app.isQuiting = true
+          appWithQuitFlag.isQuiting = true
 
           // Windows 上先关闭 Worker 线程，确保进程能正常退出
           // 否则 NSIS 安装器可能无法关闭旧进程

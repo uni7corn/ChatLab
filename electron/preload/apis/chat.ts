@@ -10,15 +10,9 @@ import type {
   DailyActivity,
   WeekdayActivity,
   MonthlyActivity,
-  RepeatAnalysis,
   CatchphraseAnalysis,
-  NightOwlAnalysis,
-  DragonKingAnalysis,
-  DivingAnalysis,
   MentionAnalysis,
   LaughAnalysis,
-  CheckInAnalysis,
-  MemeBattleAnalysis,
   MemberWithStats,
   ClusterGraphData,
   ClusterGraphOptions,
@@ -249,13 +243,6 @@ export const chatApi = {
   },
 
   /**
-   * 获取复读分析数据
-   */
-  getRepeatAnalysis: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<RepeatAnalysis> => {
-    return ipcRenderer.invoke('chat:getRepeatAnalysis', sessionId, filter)
-  },
-
-  /**
    * 获取口头禅分析数据
    */
   getCatchphraseAnalysis: (
@@ -263,33 +250,6 @@ export const chatApi = {
     filter?: { startTs?: number; endTs?: number }
   ): Promise<CatchphraseAnalysis> => {
     return ipcRenderer.invoke('chat:getCatchphraseAnalysis', sessionId, filter)
-  },
-
-  /**
-   * 获取夜猫分析数据
-   */
-  getNightOwlAnalysis: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<NightOwlAnalysis> => {
-    return ipcRenderer.invoke('chat:getNightOwlAnalysis', sessionId, filter)
-  },
-
-  /**
-   * 获取龙王分析数据
-   */
-  getDragonKingAnalysis: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<DragonKingAnalysis> => {
-    return ipcRenderer.invoke('chat:getDragonKingAnalysis', sessionId, filter)
-  },
-
-  /**
-   * 获取潜水分析数据
-   */
-  getDivingAnalysis: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<DivingAnalysis> => {
-    return ipcRenderer.invoke('chat:getDivingAnalysis', sessionId, filter)
   },
 
   /**
@@ -333,23 +293,6 @@ export const chatApi = {
     keywords?: string[]
   ): Promise<LaughAnalysis> => {
     return ipcRenderer.invoke('chat:getLaughAnalysis', sessionId, filter, keywords)
-  },
-
-  /**
-   * 获取斗图分析数据
-   */
-  getMemeBattleAnalysis: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<MemeBattleAnalysis> => {
-    return ipcRenderer.invoke('chat:getMemeBattleAnalysis', sessionId, filter)
-  },
-
-  /**
-   * 获取打卡分析数据（火花榜 + 忠臣榜）
-   */
-  getCheckInAnalysis: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<CheckInAnalysis> => {
-    return ipcRenderer.invoke('chat:getCheckInAnalysis', sessionId, filter)
   },
 
   // ==================== 成员管理 ====================
@@ -397,6 +340,22 @@ export const chatApi = {
    */
   updateSessionOwnerId: (sessionId: string, ownerId: string | null): Promise<boolean> => {
     return ipcRenderer.invoke('chat:updateSessionOwnerId', sessionId, ownerId)
+  },
+
+  // ==================== 插件系统 ====================
+
+  /**
+   * 插件参数化只读 SQL 查询
+   */
+  pluginQuery: <T = Record<string, any>>(sessionId: string, sql: string, params: any[] = []): Promise<T[]> => {
+    return ipcRenderer.invoke('chat:pluginQuery', sessionId, sql, params)
+  },
+
+  /**
+   * 插件计算卸载（纯函数在 Worker 中执行）
+   */
+  pluginCompute: <T = any>(fnString: string, input: any): Promise<T> => {
+    return ipcRenderer.invoke('chat:pluginCompute', fnString, input)
   },
 
   // ==================== SQL 实验室 ====================

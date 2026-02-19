@@ -2,11 +2,15 @@
  * 窗口和文件系统操作 IPC 处理器
  */
 
-import { ipcMain, app, dialog, clipboard, shell } from 'electron'
+import { ipcMain, app, dialog, clipboard, shell, nativeTheme } from 'electron'
 import * as fs from 'fs/promises'
 import type { IpcContext } from './types'
 import { simulateUpdateDialog, manualCheckForUpdates } from '../update'
 import { t } from '../i18n'
+
+type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
+// 通过类型扩展记录应用退出意图，避免使用 @ts-ignore。
+const appWithQuitFlag = app as AppWithQuitFlag
 
 /**
  * 注册窗口和文件系统操作 IPC 处理器
@@ -22,7 +26,11 @@ export function registerWindowHandlers(ctx: IpcContext): void {
 
   ipcMain.on('window-maxOrRestore', (ev) => {
     const winSizeState = win.isMaximized()
-    winSizeState ? win.restore() : win.maximize()
+    if (winSizeState) {
+      win.restore()
+    } else {
+      win.maximize()
+    }
     ev.reply('windowState', win.isMaximized())
   })
 
@@ -36,8 +44,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
 
   ipcMain.on('window-close', () => {
     win.close()
-    // @ts-ignore
-    app.isQuitting = true
+    appWithQuitFlag.isQuiting = true
     app.quit()
   })
 
@@ -56,7 +63,6 @@ export function registerWindowHandlers(ctx: IpcContext): void {
 
   // 设置主题模式
   ipcMain.on('window:setThemeSource', (_, mode: 'system' | 'light' | 'dark') => {
-    const { nativeTheme } = require('electron')
     nativeTheme.themeSource = mode
 
     // Windows 上动态更新 overlay 颜色以匹配主题

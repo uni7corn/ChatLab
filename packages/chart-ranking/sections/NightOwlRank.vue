@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { NightOwlAnalysis } from '@/types/analysis'
+import type { NightOwlAnalysis } from '../types'
 import { EChartRank } from '@/components/charts'
-import { EChartConsecutiveRank, EChartNightOwlRank } from './charts'
-import { SectionCard, Tabs, TopNSelect } from '@/components/UI'
+import { SectionCard, Tabs, TopNSelect, LoadingState } from '@/components/UI'
+import { EChartConsecutiveRank, EChartNightOwlRank } from '../charts'
+import { queryNightOwlAnalysis } from '../queries'
 
 interface TimeFilter {
   startTs?: number
@@ -46,7 +47,7 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await window.chatApi.getNightOwlAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await queryNightOwlAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载出勤分析失败:', error)
   } finally {
@@ -113,9 +114,7 @@ watch(
 
 <template>
   <div class="space-y-6">
-    <div v-if="isLoading" class="flex h-32 items-center justify-center">
-      <UIcon name="i-heroicons-arrow-path" class="h-6 w-6 animate-spin text-pink-500" />
-    </div>
+    <LoadingState v-if="isLoading" text="正在加载出勤分析..." />
 
     <template v-else-if="analysis">
       <!-- 修仙统计（发言分布 + 连续记录） -->

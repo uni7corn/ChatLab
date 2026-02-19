@@ -192,8 +192,12 @@ function detectConflictsInMessages(
               console.log(`[Merger] Conflict #${conflicts.length + 1}:`)
               console.log(`  Timestamp: ${ts} (${new Date(ts * 1000).toLocaleString()})`)
               console.log(`  Sender: ${sender} (${item1.msg.senderName})`)
-              console.log(`  File1: ${item1.source}, length: ${content1.length}, content: "${content1.slice(0, 50)}..."`)
-              console.log(`  File2: ${item2.source}, length: ${content2.length}, content: "${content2.slice(0, 50)}..."`)
+              console.log(
+                `  File1: ${item1.source}, length: ${content1.length}, content: "${content1.slice(0, 50)}..."`
+              )
+              console.log(
+                `  File2: ${item2.source}, length: ${content2.length}, content: "${content2.slice(0, 50)}..."`
+              )
             }
 
             conflicts.push({
@@ -441,7 +445,9 @@ export async function mergeFilesWithTempDb(
         totalProcessed += messages.length
       })
 
-      console.log(`[Merger] Processing ${source}: ${readerCount}  unique messages, elapsed: ${Date.now() - readerStartTime}ms`)
+      console.log(
+        `[Merger] Processing ${source}: ${readerCount}  unique messages, elapsed: ${Date.now() - readerStartTime}ms`
+      )
     }
 
     // 排序

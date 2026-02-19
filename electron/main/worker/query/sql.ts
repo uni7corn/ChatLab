@@ -78,6 +78,28 @@ export function getSchema(sessionId: string): TableSchema[] {
 }
 
 /**
+ * 插件专用：参数化只读 SQL 查询
+ * - 强制 stmt.readonly 检查（better-sqlite3 原生特性）
+ * - 参数化执行（防注入 + 预编译缓存）
+ */
+export function executePluginQuery<T = Record<string, any>>(sessionId: string, sql: string, params: any[] = []): T[] {
+  const db = openDatabase(sessionId)
+  if (!db) {
+    throw new Error('数据库不存在')
+  }
+
+  const stmt = db.prepare(sql.trim())
+
+  // 安全防线：强制只读检查
+  if (!stmt.readonly) {
+    throw new Error('Plugin Security Violation: Only READ-ONLY statements are allowed.')
+  }
+
+  // 参数化执行
+  return stmt.all(...params) as T[]
+}
+
+/**
  * 检查 SQL 是否包含 LIMIT 子句
  */
 function hasLimit(sql: string): boolean {

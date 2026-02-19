@@ -101,7 +101,10 @@ function loadCachedExtraLinks(): FooterLink[] | null {
       // homeFooterExtraLinks 是额外的链接，会追加到默认链接之后
       return config.homeFooterExtraLinks || null
     }
-  } catch {}
+  } catch (error) {
+    // 缓存损坏时降级为默认链接，避免影响首页渲染。
+    console.warn('[HomeFooter] 读取缓存额外链接失败，将使用默认链接。', error)
+  }
   return null
 }
 
@@ -115,7 +118,10 @@ function loadCachedSocialConfig(): SocialConfig | null {
       const config = JSON.parse(cached)
       return config.social || null
     }
-  } catch {}
+  } catch (error) {
+    // 缓存损坏时降级为默认社交配置，保证页面功能可用。
+    console.warn('[HomeFooter] 读取缓存社交配置失败，将使用默认配置。', error)
+  }
   return null
 }
 
@@ -159,7 +165,10 @@ async function fetchConfig(): Promise<void> {
     if (config.social) {
       socialConfig.value = config.social as SocialConfig
     }
-  } catch {}
+  } catch (error) {
+    // 远程配置拉取失败时保留当前（默认或缓存）状态，避免打断用户使用。
+    console.warn('[HomeFooter] 拉取远程配置失败，将继续使用本地配置。', error)
+  }
 }
 
 // 处理链接点击

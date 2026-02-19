@@ -2,8 +2,8 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SubTabs } from '@/components/UI'
-import { MessageView } from '@/components/view'
 import UserSelect from '@/components/common/UserSelect.vue'
+import MessageView from '@openchatlab/chart-message/MessageView.vue'
 
 const { t } = useI18n()
 
@@ -12,7 +12,6 @@ interface TimeFilter {
   endTs?: number
 }
 
-// Props
 const props = defineProps<{
   sessionId: string
   timeFilter?: TimeFilter
@@ -25,8 +24,14 @@ const subTabs = computed(() => [
 
 const activeSubTab = ref('message')
 
-// 成员筛选（使用 UserSelect 组件）
+// 成员筛选
 const selectedMemberId = ref<number | null>(null)
+
+// 构建 timeFilter（含 memberId）
+const viewTimeFilter = computed(() => ({
+  ...props.timeFilter,
+  memberId: selectedMemberId.value,
+}))
 </script>
 
 <template>
@@ -44,8 +49,7 @@ const selectedMemberId = ref<number | null>(null)
         <MessageView
           v-if="activeSubTab === 'message'"
           :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :member-id="selectedMemberId"
+          :time-filter="viewTimeFilter"
         />
       </Transition>
     </div>

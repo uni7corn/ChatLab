@@ -25,17 +25,11 @@ import {
   getMemberNameHistory,
   getAllSessions,
   getSession,
-  getRepeatAnalysis,
   getCatchphraseAnalysis,
-  getNightOwlAnalysis,
-  getDragonKingAnalysis,
-  getDivingAnalysis,
   getMentionAnalysis,
   getMentionGraph,
   getLaughAnalysis,
   getClusterGraph,
-  getMemeBattleAnalysis,
-  getCheckInAnalysis,
   searchMessages,
   getMessageContext,
   getRecentMessages,
@@ -51,6 +45,7 @@ import {
   // SQL 实验室
   executeRawSQL,
   getSchema,
+  executePluginQuery,
   // 会话索引
   generateSessions,
   generateIncrementalSessions,
@@ -117,17 +112,11 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   deleteMember: (p) => deleteMember(p.sessionId, p.memberId),
 
   // 高级分析
-  getRepeatAnalysis: (p) => getRepeatAnalysis(p.sessionId, p.filter),
   getCatchphraseAnalysis: (p) => getCatchphraseAnalysis(p.sessionId, p.filter),
-  getNightOwlAnalysis: (p) => getNightOwlAnalysis(p.sessionId, p.filter),
-  getDragonKingAnalysis: (p) => getDragonKingAnalysis(p.sessionId, p.filter),
-  getDivingAnalysis: (p) => getDivingAnalysis(p.sessionId, p.filter),
   getMentionAnalysis: (p) => getMentionAnalysis(p.sessionId, p.filter),
   getMentionGraph: (p) => getMentionGraph(p.sessionId, p.filter),
   getLaughAnalysis: (p) => getLaughAnalysis(p.sessionId, p.filter, p.keywords),
   getClusterGraph: (p) => getClusterGraph(p.sessionId, p.filter, p.options),
-  getMemeBattleAnalysis: (p) => getMemeBattleAnalysis(p.sessionId, p.filter),
-  getCheckInAnalysis: (p) => getCheckInAnalysis(p.sessionId, p.filter),
 
   // AI 查询
   searchMessages: (p) => searchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId),
@@ -141,6 +130,13 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   // SQL 实验室
   executeRawSQL: (p) => executeRawSQL(p.sessionId, p.sql),
   getSchema: (p) => getSchema(p.sessionId),
+
+  // 插件系统
+  pluginQuery: (p) => executePluginQuery(p.sessionId, p.sql, p.params),
+  pluginCompute: (p: { fnString: string; input: any }) => {
+    const fn = new Function('return ' + p.fnString)()
+    return fn(p.input)
+  },
 
   // 会话索引
   generateSessions: (p) => generateSessions(p.sessionId, p.gapThreshold),

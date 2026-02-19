@@ -224,7 +224,10 @@ export async function executeSemanticPipeline(options: SemanticPipelineOptions):
     const topResults = scoredResults.slice(0, topK)
 
     const topScore = topResults[0]?.score ?? 0
-    logger.info('RAG', `✅ Semantic search done: returned ${topResults.length}  results, top relevance ${(topScore * 100).toFixed(1)}%`)
+    logger.info(
+      'RAG',
+      `✅ Semantic search done: returned ${topResults.length}  results, top relevance ${(topScore * 100).toFixed(1)}%`
+    )
 
     // 7. 生成证据块
     const evidenceBlock = formatEvidenceBlock(rewrittenQuery, topResults)

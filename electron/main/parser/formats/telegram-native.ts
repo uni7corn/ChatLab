@@ -33,12 +33,7 @@ import type {
   ParsedMessage,
 } from '../types'
 import { getFileSize, createProgress } from '../utils'
-import {
-  mapChatType,
-  extractPlatformId,
-  detectMessageType,
-  buildContent,
-} from './utils/telegram-utils'
+import { mapChatType, extractPlatformId, detectMessageType, buildContent } from './utils/telegram-utils'
 import type { TelegramChat } from './utils/telegram-utils'
 
 // ==================== 类型定义 ====================
@@ -67,9 +62,7 @@ export const feature: FormatFeature = {
   extensions: ['.json'],
   signatures: {
     // Telegram 导出 JSON 的特征（语言无关：品牌名在所有语言导出中都存在）
-    head: [
-      /Telegram/i,
-    ],
+    head: [/Telegram/i],
     // 注意：personal_information 在某些导出配置中是可选的，不能作为必需字段
     requiredFields: ['chats'],
   },
@@ -93,12 +86,7 @@ export async function scanChats(filePath: string): Promise<TelegramChatInfo[]> {
 
     // 使用 stream-json 解析 chats.list 数组中的每个聊天对象
     // ignore 过滤掉 messages 的实际内容以加速扫描
-    const pipeline = chain([
-      readStream,
-      parser(),
-      pick({ filter: /^chats\.list\.\d+$/ }),
-      streamValues(),
-    ])
+    const pipeline = chain([readStream, parser(), pick({ filter: /^chats\.list\.\d+$/ }), streamValues()])
 
     pipeline.on('data', ({ value }: { value: TelegramChat }) => {
       const chat = value

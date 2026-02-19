@@ -749,10 +749,6 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     </UButton>
 
     <!-- 聊天选择器（多聊天格式通用） -->
-    <ChatSelector
-      v-model:open="showChatSelector"
-      :file-path="chatSelectorFilePath"
-      @select="handleChatSelect"
-    />
+    <ChatSelector v-model:open="showChatSelector" :file-path="chatSelectorFilePath" @select="handleChatSelect" />
   </div>
 </template>

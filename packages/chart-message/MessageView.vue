@@ -1,38 +1,48 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { MessageType } from '@/types/base'
-import { getMessageTypeName } from '@/types/base'
-import type { HourlyActivity, WeekdayActivity, MonthlyActivity, DailyActivity } from '@/types/analysis'
 import { EChartPie, EChartBar, EChartHeatmap, EChartCalendar } from '@/components/charts'
 import type { EChartPieData, EChartBarData, EChartHeatmapData, EChartCalendarData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
-
-const { t } = useI18n()
+import {
+  queryMessageTypes,
+  queryHourlyActivity,
+  queryDailyActivity,
+  queryWeekdayActivity,
+  queryMonthlyActivity,
+  queryYearlyActivity,
+  queryLengthDistribution,
+} from './queries'
+import { getMessageTypeName } from './types'
+import type {
+  HourlyActivity,
+  WeekdayActivity,
+  MonthlyActivity,
+  DailyActivity,
+  YearlyActivity,
+  MessageTypeCount,
+} from './types'
 
 interface TimeFilter {
   startTs?: number
   endTs?: number
-}
-
-interface MemberFilter {
   memberId?: number | null
 }
 
-// Props
 const props = defineProps<{
   sessionId: string
   timeFilter?: TimeFilter
-  memberId?: number | null // 成员筛选，null 表示全部成员
 }>()
+
+const { t } = useI18n()
 
 // 数据状态
 const isLoading = ref(true)
-const messageTypes = ref<Array<{ type: MessageType; count: number }>>([])
+const messageTypes = ref<MessageTypeCount[]>([])
 const hourlyActivity = ref<HourlyActivity[]>([])
 const weekdayActivity = ref<WeekdayActivity[]>([])
 const monthlyActivity = ref<MonthlyActivity[]>([])
-const yearlyActivity = ref<Array<{ year: number; messageCount: number }>>([])
+const yearlyActivity = ref<YearlyActivity[]>([])
 const dailyActivity = ref<DailyActivity[]>([])
 const lengthDetail = ref<Array<{ len: number; count: number }>>([])
 const lengthGrouped = ref<Array<{ range: string; count: number }>>([])
@@ -66,17 +76,16 @@ const monthNames = computed(() => [
 
 // 消息类型饼图数据
 const typeChartData = computed<EChartPieData>(() => {
-  // 按数量排序
   const sorted = [...messageTypes.value].sort((a, b) => b.count - a.count)
   return {
-    labels: sorted.map((t) => getMessageTypeName(t.type)),
-    values: sorted.map((t) => t.count),
+    labels: sorted.map((item) => getMessageTypeName(item.type)),
+    values: sorted.map((item) => item.count),
   }
 })
 
 // 消息类型摘要数据（用于右侧列表展示）
 const typeSummary = computed(() => {
-  const total = messageTypes.value.reduce((sum, t) => sum + t.count, 0)
+  const total = messageTypes.value.reduce((sum, item) => sum + item.count, 0)
   const sorted = [...messageTypes.value].sort((a, b) => b.count - a.count)
 
   return sorted.map((item) => ({
@@ -86,18 +95,18 @@ const typeSummary = computed(() => {
   }))
 })
 
-// 类型颜色（与 EChartPie 保持一致）
+// 类型颜色
 const typeColors = [
-  '#6366f1', // indigo
-  '#8b5cf6', // violet
-  '#ec4899', // pink
-  '#f43f5e', // rose
-  '#f97316', // orange
-  '#eab308', // yellow
-  '#22c55e', // green
-  '#14b8a6', // teal
-  '#06b6d4', // cyan
-  '#3b82f6', // blue
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#f43f5e',
+  '#f97316',
+  '#eab308',
+  '#22c55e',
+  '#14b8a6',
+  '#06b6d4',
+  '#3b82f6',
 ]
 
 function getTypeColor(index: number): string {
@@ -106,7 +115,6 @@ function getTypeColor(index: number): string {
 
 // 小时分布图表数据
 const hourlyChartData = computed<EChartBarData>(() => {
-  // 补全 24 小时数据
   const hourMap = new Map(hourlyActivity.value.map((h) => [h.hour, h.messageCount]))
   const labels: string[] = []
   const values: number[] = []
@@ -121,24 +129,18 @@ const hourlyChartData = computed<EChartBarData>(() => {
 
 // 星期分布图表数据
 const weekdayChartData = computed<EChartBarData>(() => {
-  // 补全 7 天数据（weekday: 1=周一, 2=周二, ..., 7=周日）
   const dayMap = new Map(weekdayActivity.value.map((w) => [w.weekday, w.messageCount]))
   const values: number[] = []
 
-  // 按周一到周日的顺序（1-7）
   for (let i = 1; i <= 7; i++) {
     values.push(dayMap.get(i) || 0)
   }
 
-  return {
-    labels: weekdayNames.value,
-    values,
-  }
+  return { labels: weekdayNames.value, values }
 })
 
 // 月份分布图表数据
 const monthlyChartData = computed<EChartBarData>(() => {
-  // 补全 12 个月数据
   const monthMap = new Map(monthlyActivity.value.map((m) => [m.month, m.messageCount]))
   const values: number[] = []
 
@@ -146,15 +148,11 @@ const monthlyChartData = computed<EChartBarData>(() => {
     values.push(monthMap.get(i) || 0)
   }
 
-  return {
-    labels: monthNames.value,
-    values,
-  }
+  return { labels: monthNames.value, values }
 })
 
 // 年份分布图表数据
 const yearlyChartData = computed<EChartBarData>(() => {
-  // 按年份排序
   const sorted = [...yearlyActivity.value].sort((a, b) => a.year - b.year)
   return {
     labels: sorted.map((y) => String(y.year)),
@@ -162,39 +160,29 @@ const yearlyChartData = computed<EChartBarData>(() => {
   }
 })
 
-// 消息长度详细分布图表数据（1-25字逐字）
-const lengthDetailChartData = computed<EChartBarData>(() => {
-  return {
-    labels: lengthDetail.value.map((d) => String(d.len)),
-    values: lengthDetail.value.map((d) => d.count),
-  }
-})
+// 消息长度详细分布图表数据
+const lengthDetailChartData = computed<EChartBarData>(() => ({
+  labels: lengthDetail.value.map((d) => String(d.len)),
+  values: lengthDetail.value.map((d) => d.count),
+}))
 
-// 消息长度分组分布图表数据（每5字一组）
-const lengthGroupedChartData = computed<EChartBarData>(() => {
-  return {
-    labels: lengthGrouped.value.map((d) => d.range),
-    values: lengthGrouped.value.map((d) => d.count),
-  }
-})
+// 消息长度分组分布图表数据
+const lengthGroupedChartData = computed<EChartBarData>(() => ({
+  labels: lengthGrouped.value.map((d) => d.range),
+  values: lengthGrouped.value.map((d) => d.count),
+}))
 
-// 热力图数据（小时 x 星期）- 转换为 ECharts 热力图格式
+// 热力图数据（小时 x 星期）
 const heatmapChartData = computed<EChartHeatmapData>(() => {
-  // X 轴：24 小时
   const xLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`)
-  // Y 轴：周一到周日
   const yLabels = weekdayNames.value
 
-  // 计算总消息数用于归一化
-  const total = messageTypes.value.reduce((sum, t) => sum + t.count, 0) || 1
+  const total = messageTypes.value.reduce((sum, item) => sum + item.count, 0) || 1
 
-  // 数据格式：[x索引, y索引, 值]
   const data: Array<[number, number, number]> = []
 
-  // 按周一(1)到周日(7)的顺序生成数据
   for (let day = 1; day <= 7; day++) {
     for (let hour = 0; hour < 24; hour++) {
-      // 使用现有数据估算：星期数据 * 小时数据 / 总数
       const dayCount = weekdayActivity.value.find((w) => w.weekday === day)?.messageCount || 0
       const hourCount = hourlyActivity.value.find((h) => h.hour === hour)?.messageCount || 0
       const value = Math.round((dayCount * hourCount) / total)
@@ -205,54 +193,42 @@ const heatmapChartData = computed<EChartHeatmapData>(() => {
   return { xLabels, yLabels, data }
 })
 
-// 日历热力图数据（GitHub 贡献图风格）
-const calendarChartData = computed<EChartCalendarData[]>(() => {
-  return dailyActivity.value.map((d) => ({
-    date: d.date,
-    value: d.messageCount,
-  }))
-})
+// 日历热力图数据
+const calendarChartData = computed<EChartCalendarData[]>(() =>
+  dailyActivity.value.map((d) => ({ date: d.date, value: d.messageCount }))
+)
 
-// 日历热力图可用年份
+// 日历可用年份
 const calendarYears = computed(() => {
   const years = new Set<number>()
   dailyActivity.value.forEach((d) => {
     const year = parseInt(d.date.split('-')[0])
     if (!isNaN(year)) years.add(year)
   })
-  return Array.from(years).sort((a, b) => b - a) // 降序排列
+  return Array.from(years).sort((a, b) => b - a)
 })
 
-// 当前选中的日历年份
 const selectedCalendarYear = ref<number>(new Date().getFullYear())
 
-// 过滤当前年份的日历数据
 const filteredCalendarData = computed(() => {
   const year = selectedCalendarYear.value
   return calendarChartData.value.filter((d) => d.date.startsWith(`${year}-`))
 })
 
-// 合并 timeFilter 和 memberId 的 filter
-const effectiveFilter = computed(() => ({
-  ...props.timeFilter,
-  memberId: props.memberId,
-}))
-
-// 加载数据
+// 加载数据 — 所有查询通过 window.chatApi.pluginQuery 在 Worker 线程执行
 async function loadData() {
   if (!props.sessionId) return
 
   isLoading.value = true
   try {
-    const filter = effectiveFilter.value
     const [types, hourly, weekday, monthly, yearly, daily, lengthData] = await Promise.all([
-      window.chatApi.getMessageTypeDistribution(props.sessionId, filter),
-      window.chatApi.getHourlyActivity(props.sessionId, filter),
-      window.chatApi.getWeekdayActivity(props.sessionId, filter),
-      window.chatApi.getMonthlyActivity(props.sessionId, filter),
-      window.chatApi.getYearlyActivity(props.sessionId, filter),
-      window.chatApi.getDailyActivity(props.sessionId, filter),
-      window.chatApi.getMessageLengthDistribution(props.sessionId, filter),
+      queryMessageTypes(props.sessionId, props.timeFilter),
+      queryHourlyActivity(props.sessionId, props.timeFilter),
+      queryWeekdayActivity(props.sessionId, props.timeFilter),
+      queryMonthlyActivity(props.sessionId, props.timeFilter),
+      queryYearlyActivity(props.sessionId, props.timeFilter),
+      queryDailyActivity(props.sessionId, props.timeFilter),
+      queryLengthDistribution(props.sessionId, props.timeFilter),
     ])
 
     messageTypes.value = types
@@ -264,23 +240,20 @@ async function loadData() {
     lengthDetail.value = lengthData.detail
     lengthGrouped.value = lengthData.grouped
 
-    // 自动选择最新的年份
     if (calendarYears.value.length > 0) {
       selectedCalendarYear.value = calendarYears.value[0]
     }
   } catch (error) {
-    console.error('加载消息视图数据失败:', error)
+    console.error('[chart-message] Failed to load data:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-// 监听 props 变化（包括 memberId）
+// 监听 props 变化重新加载
 watch(
-  () => [props.sessionId, props.timeFilter, props.memberId],
-  () => {
-    loadData()
-  },
+  () => [props.sessionId, props.timeFilter],
+  () => loadData(),
   { immediate: true, deep: true }
 )
 </script>
@@ -296,34 +269,23 @@ watch(
       <!-- 消息类型分布 -->
       <SectionCard :title="t('views.message.typeDistribution')" :show-divider="false">
         <div class="p-5">
-          <div v-if="typeChartData.values.length > 0" class="flex flex-col gap-6 lg:flex-row lg:items-center">
-            <!-- 左侧饼图 -->
-            <div class="lg:w-1/2">
+          <div v-if="typeChartData.values.length > 0" class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center">
+            <div>
               <EChartPie :data="typeChartData" :height="280" :show-legend="false" />
             </div>
-            <!-- 右侧摘要列表 -->
-            <div class="lg:w-1/2">
+            <div>
               <div class="space-y-3">
                 <div v-for="(item, index) in typeSummary" :key="index" class="flex items-center gap-3">
-                  <!-- 颜色标记 -->
                   <div class="h-3 w-3 shrink-0 rounded-full" :style="{ backgroundColor: getTypeColor(index) }" />
-                  <!-- 类型名称 -->
-                  <div class="min-w-20 shrink-0 text-sm text-gray-700 dark:text-gray-300">
-                    {{ item.name }}
-                  </div>
-                  <!-- 进度条 -->
+                  <div class="min-w-20 shrink-0 text-sm text-gray-700 dark:text-gray-300">{{ item.name }}</div>
                   <div class="flex-1">
                     <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                       <div
                         class="h-full rounded-full transition-all"
-                        :style="{
-                          width: `${item.percentage}%`,
-                          backgroundColor: getTypeColor(index),
-                        }"
+                        :style="{ width: `${item.percentage}%`, backgroundColor: getTypeColor(index) }"
                       />
                     </div>
                   </div>
-                  <!-- 数量和占比 -->
                   <div class="shrink-0 text-right">
                     <span class="text-sm font-medium text-gray-900 dark:text-white">
                       {{ item.count.toLocaleString() }}
@@ -342,14 +304,12 @@ watch(
 
       <!-- 时间分布图表（小时 & 星期） -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <!-- 小时分布 -->
         <SectionCard :title="t('views.message.hourlyDistribution')" :show-divider="false">
           <div class="p-5">
             <EChartBar :data="hourlyChartData" :height="200" />
           </div>
         </SectionCard>
 
-        <!-- 星期分布 -->
         <SectionCard :title="t('views.message.weekdayDistribution')" :show-divider="false">
           <div class="p-5">
             <EChartBar :data="weekdayChartData" :height="200" />
@@ -359,14 +319,12 @@ watch(
 
       <!-- 时间分布图表（月份 & 年份） -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <!-- 月份分布 -->
         <SectionCard :title="t('views.message.monthlyDistribution')" :show-divider="false">
           <div class="p-5">
             <EChartBar :data="monthlyChartData" :height="200" />
           </div>
         </SectionCard>
 
-        <!-- 年份分布 -->
         <SectionCard :title="t('views.message.yearlyDistribution')" :show-divider="false">
           <div class="p-5">
             <EChartBar v-if="yearlyChartData.values.length > 0" :data="yearlyChartData" :height="200" />
@@ -377,9 +335,8 @@ watch(
         </SectionCard>
       </div>
 
-      <!-- 消息长度分布（左右两图） -->
+      <!-- 消息长度分布 -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <!-- 左侧：1-25字逐字分布 -->
         <SectionCard :title="t('views.message.lengthDetailTitle')" :show-divider="false">
           <template #headerRight>
             <span class="text-xs text-gray-400">{{ t('views.message.lengthDetailHint') }}</span>
@@ -396,7 +353,6 @@ watch(
           </div>
         </SectionCard>
 
-        <!-- 右侧：分组分布 -->
         <SectionCard :title="t('views.message.lengthGroupedTitle')" :show-divider="false">
           <template #headerRight>
             <span class="text-xs text-gray-400">{{ t('views.message.lengthGroupedHint') }}</span>
@@ -424,7 +380,7 @@ watch(
         </div>
       </SectionCard>
 
-      <!-- 日历热力图（GitHub 贡献图风格） -->
+      <!-- 日历热力图 -->
       <SectionCard :title="t('views.message.calendarHeatmap')" :show-divider="false">
         <template #headerRight>
           <div class="flex items-center gap-2">

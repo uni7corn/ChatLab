@@ -323,7 +323,11 @@ function formatToolParams(tool: ToolBlockContent): string {
                 <!-- 调用前缀 -->
                 <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">{{ t('ai.chat.message.calling') }}</span>
                 <span class="font-medium text-gray-700 dark:text-gray-300">
-                  {{ te(`ai.chat.message.tools.${block.tool.name}`) ? t(`ai.chat.message.tools.${block.tool.name}`) : block.tool.displayName }}
+                  {{
+                    te(`ai.chat.message.tools.${block.tool.name}`)
+                      ? t(`ai.chat.message.tools.${block.tool.name}`)
+                      : block.tool.displayName
+                  }}
                 </span>
                 <span v-if="formatToolParams(block.tool)" class="ml-2 text-xs text-gray-500 dark:text-gray-400">
                   {{ formatToolParams(block.tool) }}

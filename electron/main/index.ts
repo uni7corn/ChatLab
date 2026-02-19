@@ -9,6 +9,10 @@ import { needsLegacyMigration, migrateFromLegacyDir, ensureAppDirs, cleanupPendi
 import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
 import { initLocale } from './i18n'
 
+type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
+// 统一通过扩展类型访问退出标记，避免使用 @ts-ignore。
+const appWithQuitFlag = app as AppWithQuitFlag
+
 class MainProcess {
   mainWindow: BrowserWindow | null
   constructor() {
@@ -254,8 +258,7 @@ class MainProcess {
 
       // 只有显式调用quit才退出系统，区分MAC系统程序坞退出和点击X隐藏
       app.on('before-quit', () => {
-        // @ts-ignore
-        app.isQuiting = true
+        appWithQuitFlag.isQuiting = true
       })
 
       // 退出前清理资源
@@ -272,7 +275,9 @@ class MainProcess {
     }
     this.mainWindow.webContents.on('did-finish-load', () => {
       setTimeout(() => {
-        this.mainWindow && this.mainWindow.webContents.send('app-started')
+        if (this.mainWindow) {
+          this.mainWindow.webContents.send('app-started')
+        }
       }, 500)
     })
 
@@ -288,8 +293,7 @@ class MainProcess {
     this.mainWindow.on('close', (event) => {
       if (platform.isMacOS) {
         // macOS: 只有明确退出时才真正关闭，否则只隐藏窗口（符合 macOS 用户习惯）
-        // @ts-ignore
-        if (!app.isQuiting) {
+        if (!appWithQuitFlag.isQuiting) {
           event.preventDefault()
           this.mainWindow?.hide()
         }

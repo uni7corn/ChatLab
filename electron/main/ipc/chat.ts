@@ -215,16 +215,20 @@ export function registerChatHandlers(ctx: IpcContext): void {
         message: '',
       })
 
-      const result = await worker.streamImport(filePath, (progress: ParseProgress) => {
-        win.webContents.send('chat:importProgress', {
-          stage: progress.stage,
-          progress: progress.percentage,
-          message: progress.message,
-          bytesRead: progress.bytesRead,
-          totalBytes: progress.totalBytes,
-          messagesProcessed: progress.messagesProcessed,
-        })
-      }, formatOptions)
+      const result = await worker.streamImport(
+        filePath,
+        (progress: ParseProgress) => {
+          win.webContents.send('chat:importProgress', {
+            stage: progress.stage,
+            progress: progress.percentage,
+            message: progress.message,
+            bytesRead: progress.bytesRead,
+            totalBytes: progress.totalBytes,
+            messagesProcessed: progress.messagesProcessed,
+          })
+        },
+        formatOptions
+      )
 
       if (result.success) {
         console.log('[IpcMain] Stream import (with options) successful, sessionId:', result.sessionId)
@@ -493,21 +497,6 @@ export function registerChatHandlers(ctx: IpcContext): void {
   })
 
   /**
-   * 获取复读分析数据
-   */
-  ipcMain.handle(
-    'chat:getRepeatAnalysis',
-    async (_, sessionId: string, filter?: { startTs?: number; endTs?: number }) => {
-      try {
-        return await worker.getRepeatAnalysis(sessionId, filter)
-      } catch (error) {
-        console.error('Failed to get repeat analysis:', error)
-        return { originators: [], initiators: [], breakers: [], totalRepeatChains: 0 }
-      }
-    }
-  )
-
-  /**
    * 获取口头禅分析数据
    */
   ipcMain.handle(
@@ -518,58 +507,6 @@ export function registerChatHandlers(ctx: IpcContext): void {
       } catch (error) {
         console.error('Failed to get catchphrase analysis:', error)
         return { members: [] }
-      }
-    }
-  )
-
-  /**
-   * 获取夜猫分析数据
-   */
-  ipcMain.handle(
-    'chat:getNightOwlAnalysis',
-    async (_, sessionId: string, filter?: { startTs?: number; endTs?: number }) => {
-      try {
-        return await worker.getNightOwlAnalysis(sessionId, filter)
-      } catch (error) {
-        console.error('Failed to get night owl analysis:', error)
-        return {
-          nightOwlRank: [],
-          lastSpeakerRank: [],
-          firstSpeakerRank: [],
-          consecutiveRecords: [],
-          champions: [],
-          totalDays: 0,
-        }
-      }
-    }
-  )
-
-  /**
-   * 获取龙王分析数据
-   */
-  ipcMain.handle(
-    'chat:getDragonKingAnalysis',
-    async (_, sessionId: string, filter?: { startTs?: number; endTs?: number }) => {
-      try {
-        return await worker.getDragonKingAnalysis(sessionId, filter)
-      } catch (error) {
-        console.error('Failed to get top poster analysis:', error)
-        return { rank: [], totalDays: 0 }
-      }
-    }
-  )
-
-  /**
-   * 获取潜水分析数据
-   */
-  ipcMain.handle(
-    'chat:getDivingAnalysis',
-    async (_, sessionId: string, filter?: { startTs?: number; endTs?: number }) => {
-      try {
-        return await worker.getDivingAnalysis(sessionId, filter)
-      } catch (error) {
-        console.error('Failed to get lurker analysis:', error)
-        return { rank: [] }
       }
     }
   )
@@ -663,45 +600,6 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   )
 
-  /**
-   * 获取斗图分析数据
-   */
-  ipcMain.handle(
-    'chat:getMemeBattleAnalysis',
-    async (_, sessionId: string, filter?: { startTs?: number; endTs?: number }) => {
-      try {
-        return await worker.getMemeBattleAnalysis(sessionId, filter)
-      } catch (error) {
-        console.error('Failed to get meme battle analysis:', error)
-        return {
-          longestBattle: null,
-          rankByCount: [],
-          rankByImageCount: [],
-          totalBattles: 0,
-        }
-      }
-    }
-  )
-
-  /**
-   * 获取打卡分析数据（火花榜 + 忠臣榜）
-   */
-  ipcMain.handle(
-    'chat:getCheckInAnalysis',
-    async (_, sessionId: string, filter?: { startTs?: number; endTs?: number }) => {
-      try {
-        return await worker.getCheckInAnalysis(sessionId, filter)
-      } catch (error) {
-        console.error('Failed to get check-in analysis:', error)
-        return {
-          streakRank: [],
-          loyaltyRank: [],
-          totalDays: 0,
-        }
-      }
-    }
-  )
-
   // ==================== 成员管理 ====================
 
   /**
@@ -774,6 +672,32 @@ export function registerChatHandlers(ctx: IpcContext): void {
     } catch (error) {
       console.error('Failed to update session owner:', error)
       return false
+    }
+  })
+
+  // ==================== 插件系统 ====================
+
+  /**
+   * 插件参数化只读 SQL 查询
+   */
+  ipcMain.handle('chat:pluginQuery', async (_, sessionId: string, sql: string, params: any[]) => {
+    try {
+      return await worker.pluginQuery(sessionId, sql, params)
+    } catch (error) {
+      console.error('[IpcMain] Plugin query failed:', error)
+      throw error
+    }
+  })
+
+  /**
+   * 插件计算卸载（纯函数在 Worker 中执行）
+   */
+  ipcMain.handle('chat:pluginCompute', async (_, fnString: string, input: any) => {
+    try {
+      return await worker.pluginCompute(fnString, input)
+    } catch (error) {
+      console.error('[IpcMain] Plugin compute failed:', error)
+      throw error
     }
   })
 
@@ -887,7 +811,12 @@ export function registerChatHandlers(ctx: IpcContext): void {
   ipcMain.handle(
     'session:generateSummary',
     async (_, dbSessionId: string, chatSessionId: number, locale?: string, forceRegenerate?: boolean) => {
-      console.log('[IPC] session:generateSummary request received:', { dbSessionId, chatSessionId, locale, forceRegenerate })
+      console.log('[IPC] session:generateSummary request received:', {
+        dbSessionId,
+        chatSessionId,
+        locale,
+        forceRegenerate,
+      })
       try {
         const { generateSessionSummary } = await import('../ai/summary')
         const result = await generateSessionSummary(

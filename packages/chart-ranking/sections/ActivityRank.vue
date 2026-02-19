@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { DragonKingAnalysis, CheckInAnalysis, MemberActivity } from '@/types/analysis'
+import type { DragonKingAnalysis, CheckInAnalysis, MemberActivity } from '../types'
 import { EChartRank } from '@/components/charts'
 import type { RankItem } from '@/components/charts'
 import { SectionCard, LoadingState, Tabs, TopNSelect } from '@/components/UI'
+import { queryDragonKingAnalysis, queryCheckInAnalysis } from '../queries'
 
 interface TimeFilter {
   startTs?: number
@@ -46,8 +47,8 @@ async function loadData() {
   isLoading.value = true
   try {
     const [dragonKing, checkIn] = await Promise.all([
-      window.chatApi.getDragonKingAnalysis(props.sessionId, props.timeFilter),
-      window.chatApi.getCheckInAnalysis(props.sessionId, props.timeFilter),
+      queryDragonKingAnalysis(props.sessionId, props.timeFilter),
+      queryCheckInAnalysis(props.sessionId, props.timeFilter),
     ])
     dragonKingAnalysis.value = dragonKing
     checkInAnalysis.value = checkIn

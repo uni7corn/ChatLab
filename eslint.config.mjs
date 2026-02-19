@@ -44,6 +44,8 @@ export default defineConfigWithVueTs(
       // Vue 规则放宽
       'vue/require-default-prop': 'off',
       'vue/multi-word-component-names': 'off',
+      // 项目中有受控的 HTML 渲染场景（如 Markdown/高亮结果），统一关闭该告警。
+      'vue/no-v-html': 'off',
 
       // TypeScript 规则放宽（项目约定）
       '@typescript-eslint/no-unused-vars': 'off',

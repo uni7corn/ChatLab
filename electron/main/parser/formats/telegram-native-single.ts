@@ -31,12 +31,7 @@ import type {
   ParsedMessage,
 } from '../types'
 import { getFileSize, createProgress } from '../utils'
-import {
-  mapChatType,
-  extractPlatformId,
-  detectMessageType,
-  buildContent,
-} from './utils/telegram-utils'
+import { mapChatType, extractPlatformId, detectMessageType, buildContent } from './utils/telegram-utils'
 import type { TelegramChat } from './utils/telegram-utils'
 
 // ==================== 特征定义 ====================
@@ -54,7 +49,8 @@ export const feature: FormatFeature = {
     requiredFields: ['messages'],
     fieldPatterns: {
       // Telegram 特有的聊天类型值，精确区分
-      telegramChatType: /\"type\"\s*:\s*\"(personal_chat|bot_chat|private_group|private_supergroup|public_group|public_supergroup|public_channel|private_channel|saved_messages)\"/,
+      telegramChatType:
+        /"type"\s*:\s*"(personal_chat|bot_chat|private_group|private_supergroup|public_group|public_supergroup|public_channel|private_channel|saved_messages)"/,
     },
   },
 }
@@ -78,11 +74,7 @@ async function* parseTelegramSingle(options: ParseOptions): AsyncGenerator<Parse
   const chatData = await new Promise<TelegramChat | null>((resolve, reject) => {
     const readStream = fs.createReadStream(filePath, { encoding: 'utf-8' })
 
-    const pipeline = chain([
-      readStream,
-      parser(),
-      streamValues(),
-    ])
+    const pipeline = chain([readStream, parser(), streamValues()])
 
     let found = false
 

@@ -179,14 +179,16 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
         break
 
       case 'member':
-        const member: ParsedMember = {
-          platformId: parsed.platformId,
-          accountName: parsed.accountName,
-          groupNickname: parsed.groupNickname,
-          avatar: parsed.avatar,
+        {
+          const member: ParsedMember = {
+            platformId: parsed.platformId,
+            accountName: parsed.accountName,
+            groupNickname: parsed.groupNickname,
+            avatar: parsed.avatar,
+          }
+          members.push(member)
+          memberMap.set(parsed.platformId, member)
         }
-        members.push(member)
-        memberMap.set(parsed.platformId, member)
         break
 
       case 'message':

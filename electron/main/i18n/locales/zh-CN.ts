@@ -63,10 +63,8 @@ export default {
           month: '筛选指定月份的消息（1-12），需要配合 year 使用',
           day: '筛选指定日期的消息（1-31），需要配合 year 和 month 使用',
           hour: '筛选指定小时的消息（0-23），需要配合 year、month 和 day 使用',
-          start_time:
-            '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"。指定后会覆盖 year/month/day/hour 参数',
-          end_time:
-            '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"。指定后会覆盖 year/month/day/hour 参数',
+          start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"。指定后会覆盖 year/month/day/hour 参数',
+          end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"。指定后会覆盖 year/month/day/hour 参数',
         },
       },
       get_recent_messages: {
@@ -77,10 +75,8 @@ export default {
           month: '筛选指定月份的消息（1-12），需要配合 year 使用',
           day: '筛选指定日期的消息（1-31），需要配合 year 和 month 使用',
           hour: '筛选指定小时的消息（0-23），需要配合 year、month 和 day 使用',
-          start_time:
-            '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"。指定后会覆盖 year/month/day/hour 参数',
-          end_time:
-            '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"。指定后会覆盖 year/month/day/hour 参数',
+          start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"。指定后会覆盖 year/month/day/hour 参数',
+          end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"。指定后会覆盖 year/month/day/hour 参数',
         },
       },
       get_member_stats: {
@@ -118,10 +114,8 @@ export default {
           month: '筛选指定月份的消息（1-12），需要配合 year 使用',
           day: '筛选指定日期的消息（1-31），需要配合 year 和 month 使用',
           hour: '筛选指定小时的消息（0-23），需要配合 year、month 和 day 使用',
-          start_time:
-            '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"。指定后会覆盖 year/month/day/hour 参数',
-          end_time:
-            '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"。指定后会覆盖 year/month/day/hour 参数',
+          start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"。指定后会覆盖 year/month/day/hour 参数',
+          end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"。指定后会覆盖 year/month/day/hour 参数',
         },
       },
       get_message_context: {

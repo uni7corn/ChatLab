@@ -3,24 +3,24 @@
  * 互动分析视图（群聊专属）
  * 展示成员间的 @ 互动关系图
  */
-import { ref, computed, watch } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { EChartGraph } from '@/components/charts'
 import type { EChartGraphData } from '@/components/charts'
-
-const { t } = useI18n()
+import { loadMentionGraph } from './queries'
 
 interface TimeFilter {
   startTs?: number
   endTs?: number
+  memberId?: number | null
 }
 
-// Props
 const props = defineProps<{
   sessionId: string
   timeFilter?: TimeFilter
-  memberId?: number | null
 }>()
+
+const { t } = useI18n()
 
 // 数据状态
 const isLoading = ref(true)
@@ -40,26 +40,20 @@ function handleResetView() {
   graphRef.value?.resetView()
 }
 
-// 合并 timeFilter 和 memberId 的 filter
-const effectiveFilter = computed(() => ({
-  ...props.timeFilter,
-  memberId: props.memberId,
-}))
-
 // 加载数据
 async function loadData() {
   if (!props.sessionId) return
 
   isLoading.value = true
   try {
-    const data = await window.chatApi.getMentionGraph(props.sessionId, effectiveFilter.value)
+    const data = await loadMentionGraph(props.sessionId, props.timeFilter)
     graphData.value = {
       nodes: data.nodes,
       links: data.links,
       maxLinkValue: data.maxLinkValue,
     }
   } catch (error) {
-    console.error('加载互动关系图数据失败:', error)
+    console.error('[chart-interaction] 加载互动关系图数据失败:', error)
   } finally {
     isLoading.value = false
   }
@@ -67,7 +61,7 @@ async function loadData() {
 
 // 监听 props 变化
 watch(
-  () => [props.sessionId, props.timeFilter, props.memberId],
+  () => [props.sessionId, props.timeFilter],
   () => {
     loadData()
   },

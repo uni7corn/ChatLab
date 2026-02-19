@@ -31,13 +31,7 @@ export type { MembersPaginationParams, MembersPaginatedResult } from './basic'
 
 // 高级分析
 export {
-  getRepeatAnalysis,
   getCatchphraseAnalysis,
-  getNightOwlAnalysis,
-  getDragonKingAnalysis,
-  getDivingAnalysis,
-  getCheckInAnalysis,
-  getMemeBattleAnalysis,
   getMentionAnalysis,
   getMentionGraph,
   getLaughAnalysis,
@@ -62,7 +56,7 @@ export {
 export type { MessageResult, PaginatedMessages, MessagesWithTotal } from './messages'
 
 // SQL 实验室
-export { executeRawSQL, getSchema } from './sql'
+export { executeRawSQL, getSchema, executePluginQuery } from './sql'
 export type { SQLResult, TableSchema } from './sql'
 
 // 会话索引
