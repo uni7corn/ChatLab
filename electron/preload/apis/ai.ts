@@ -75,29 +75,9 @@ export interface ChatStreamChunk {
   finishReason?: 'stop' | 'length' | 'error'
 }
 
-// Agent API 类型
-export interface TokenUsage {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-}
-
-export interface AgentRuntimeStatus {
-  phase: 'preparing' | 'thinking' | 'tool_running' | 'responding' | 'completed' | 'aborted' | 'error'
-  round: number
-  toolsUsed: number
-  currentTool?: string
-  contextTokens: number
-  contextWindow: number
-  contextUsage: number
-  totalUsage: TokenUsage
-  nodeCount?: number
-  tagCount?: number
-  segmentSize?: number
-  checkoutCount?: number
-  activeAnchorNodeId?: string | null
-  updatedAt: number
-}
+// Agent API 类型 — 从 shared/types 统一导入
+export type { TokenUsage, AgentRuntimeStatus } from '../../shared/types'
+import type { TokenUsage, AgentRuntimeStatus } from '../../shared/types'
 
 export interface AgentStreamChunk {
   type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'done' | 'error'
@@ -651,28 +631,28 @@ export const llmApi = {
 export const agentApi = {
   /**
    * 执行 Agent 对话（流式）
-   * Agent 会自动调用工具获取数据并生成回答
-   * @param historyMessages 对话历史（可选，用于上下文关联）
+   * Agent 通过 context.conversationId 从后端 SQLite 读取对话历史
    * @param chatType 聊天类型（'group' | 'private'）
    * @param promptConfig 用户自定义提示词配置（可选）
    * @param locale 语言设置（可选，默认 'zh-CN'）
+   * @param maxHistoryRounds 最大历史轮数（可选，每轮 = user + assistant = 2 条）
    * @returns 返回 { requestId, promise }，requestId 可用于中止请求
    */
   runStream: (
     userMessage: string,
     context: ToolContext,
     onChunk?: (chunk: AgentStreamChunk) => void,
-    historyMessages?: Array<{ role: 'user' | 'assistant'; content: string }>,
     chatType?: 'group' | 'private',
     promptConfig?: PromptConfig,
-    locale?: string
+    locale?: string,
+    maxHistoryRounds?: number
   ): { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: string }> } => {
     const requestId = `agent_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
     console.log(
       '[preload] Agent runStream 开始，requestId:',
       requestId,
-      'historyLength:',
-      historyMessages?.length ?? 0,
+      'conversationId:',
+      context.conversationId ?? 'none',
       'chatType:',
       chatType ?? 'group',
       'hasPromptConfig:',
@@ -713,9 +693,8 @@ export const agentApi = {
       ipcRenderer.on('agent:streamChunk', chunkHandler)
       ipcRenderer.on('agent:complete', completeHandler)
 
-      // 发起请求（传递历史消息、聊天类型、提示词配置和语言设置）
       ipcRenderer
-        .invoke('agent:runStream', requestId, userMessage, context, historyMessages, chatType, promptConfig, locale)
+        .invoke('agent:runStream', requestId, userMessage, context, chatType, promptConfig, locale, maxHistoryRounds)
         .then((result) => {
           console.log('[preload] Agent invoke 返回:', result)
           if (!result.success) {

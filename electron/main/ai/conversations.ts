@@ -363,3 +363,27 @@ export function deleteMessage(messageId: string): boolean {
   const result = db.prepare('DELETE FROM ai_message WHERE id = ?').run(messageId)
   return result.changes > 0
 }
+
+// ==================== Agent 专用 ====================
+
+/**
+ * 为 Agent 提供对话历史
+ *
+ * 返回简化的 {role, content} 格式，按时间升序排列。
+ * @param conversationId 对话 ID
+ * @param maxMessages 最大返回条数（取最近 N 条）
+ */
+export function getHistoryForAgent(
+  conversationId: string,
+  maxMessages?: number
+): Array<{ role: 'user' | 'assistant'; content: string }> {
+  const messages = getMessages(conversationId)
+  const filtered = messages
+    .filter((m) => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
+    .map((m) => ({ role: m.role, content: m.content }))
+
+  if (maxMessages && filtered.length > maxMessages) {
+    return filtered.slice(-maxMessages)
+  }
+  return filtered
+}

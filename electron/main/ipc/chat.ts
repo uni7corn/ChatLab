@@ -295,9 +295,7 @@ export function registerChatHandlers(ctx: IpcContext): void {
    */
   ipcMain.handle('chat:deleteSession', async (_, sessionId: string) => {
     try {
-      // 先关闭 Worker 中的数据库连接
       await worker.closeDatabase(sessionId)
-      // 然后删除文件（使用核心模块）
       const result = databaseCore.deleteSession(sessionId)
       return result
     } catch (error) {

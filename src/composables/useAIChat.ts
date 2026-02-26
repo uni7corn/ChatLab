@@ -7,6 +7,7 @@ import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { usePromptStore } from '@/stores/prompt'
 import { useSessionStore } from '@/stores/session'
+import type { TokenUsage, AgentRuntimeStatus } from '@electron/shared/types'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -69,30 +70,8 @@ export interface ToolStatus {
   result?: unknown
 }
 
-// Token 使用量类型
-export interface TokenUsage {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-}
-
-// Agent 运行状态（由主进程流式推送）
-export interface AgentRuntimeStatus {
-  phase: 'preparing' | 'thinking' | 'tool_running' | 'responding' | 'completed' | 'aborted' | 'error'
-  round: number
-  toolsUsed: number
-  currentTool?: string
-  contextTokens: number
-  contextWindow: number
-  contextUsage: number
-  totalUsage: TokenUsage
-  nodeCount?: number
-  tagCount?: number
-  segmentSize?: number
-  checkoutCount?: number
-  activeAnchorNodeId?: string | null
-  updatedAt: number
-}
+// TokenUsage & AgentRuntimeStatus — re-export from shared/types
+export type { TokenUsage, AgentRuntimeStatus }
 
 // 工具显示名称通过 vue-i18n 管理: ai.chat.message.tools.*
 // 渲染层 (ChatMessage.vue, AIThinkingIndicator.vue) 使用 t() 动态获取
@@ -129,6 +108,9 @@ export function useAIChat(
   const isLoadingSource = ref(false)
   const isAIThinking = ref(false)
   const currentConversationId = ref<string | null>(null)
+  // Agent 上下文会话 ID（与数据库 conversationId 解耦）：
+  // 用于保证“新建对话首轮”也能拿到独立上下文键，避免共享 draft 时间线
+  const contextConversationId = ref<string>('')
 
   // Owner 信息（用于告诉 AI 当前用户是谁）
   const ownerInfo = ref<OwnerInfo | undefined>(undefined)
@@ -182,14 +164,19 @@ export function useAIChat(
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   }
 
+  function generateDraftContextConversationId(): string {
+    return `draft_ctx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  // 初始化时先分配一个草稿上下文键，确保首轮请求也有隔离 ID
+  contextConversationId.value = generateDraftContextConversationId()
+
   function buildFallbackAgentStatus(): AgentRuntimeStatus {
     return {
       phase: 'preparing',
       round: 0,
       toolsUsed: toolsUsedInCurrentRound.value.length,
       contextTokens: 0,
-      contextWindow: 0,
-      contextUsage: 0,
       totalUsage: { ...sessionTokenUsage.value },
       updatedAt: Date.now(),
     }
@@ -373,11 +360,20 @@ export function useAIChat(
     }
 
     try {
-      // 调用 Agent API
-      // 注意：ownerInfo 需要深拷贝为普通对象，否则 IPC 克隆会失败
+      // 确保对话 ID 存在（数据流倒置：Agent 从 SQLite 读取历史，需要有效的 conversationId）
+      if (!currentConversationId.value) {
+        const title = content.slice(0, 50) + (content.length > 50 ? '...' : '')
+        const conversation = await window.aiApi.createConversation(sessionId, title)
+        currentConversationId.value = conversation.id
+        contextConversationId.value = conversation.id
+        console.log('[AI] 提前创建对话:', conversation.id)
+      }
+
+      const maxHistoryRounds = aiGlobalSettings.value.maxHistoryRounds ?? 5
+
       const context = {
         sessionId,
-        conversationId: currentConversationId.value || undefined,
+        conversationId: currentConversationId.value,
         timeFilter: timeFilter ? { startTs: timeFilter.startTs, endTs: timeFilter.endTs } : undefined,
         maxMessagesLimit: aiGlobalSettings.value.maxMessagesPerRequest,
         ownerInfo: ownerInfo.value
@@ -385,31 +381,9 @@ export function useAIChat(
           : undefined,
       }
 
-      console.log('[AI] 构建 context:', {
-        sessionId,
-        maxMessagesLimit: context.maxMessagesLimit,
-        ownerInfo: context.ownerInfo,
-        aiGlobalSettings: aiGlobalSettings.value,
-      })
-
-      // 收集历史消息（排除当前用户消息和 AI 占位消息）
-      // 应用历史轮数限制：每轮 = 用户提问 + AI 回复 = 2 条消息
-      const maxHistoryRounds = aiGlobalSettings.value.maxHistoryRounds ?? 5
-      const maxHistoryMessages = maxHistoryRounds * 2
-
-      const historyMessages = messages.value
-        .slice(0, -2) // 排除刚添加的用户消息和 AI 占位消息
-        .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-        .filter((msg) => msg.content && msg.content.trim() !== '') // 排除空消息
-        .slice(-maxHistoryMessages) // 只保留最近 N 轮对话
-        .map((msg) => ({
-          role: msg.role as 'user' | 'assistant',
-          content: msg.content,
-        }))
-
       console.log('[AI] 调用 Agent API...', {
         context,
-        historyLength: historyMessages.length,
+        maxHistoryRounds,
         chatType,
         promptConfig: currentPromptConfig.value,
       })
@@ -487,7 +461,9 @@ export function useAIChat(
 
             case 'status':
               if (chunk.status) {
-                agentStatus.value = chunk.status
+                if (!agentStatus.value || chunk.status.updatedAt >= agentStatus.value.updatedAt) {
+                  agentStatus.value = chunk.status
+                }
               }
               break
 
@@ -529,14 +505,13 @@ export function useAIChat(
               break
           }
         },
-        historyMessages,
         chatType,
-        // 确保传递纯对象，避免 IPC 克隆失败
         {
           roleDefinition: currentPromptConfig.value.roleDefinition,
           responseRules: currentPromptConfig.value.responseRules,
         },
-        locale
+        locale,
+        maxHistoryRounds
       )
 
       // 存储 Agent 请求 ID（用于中止）
@@ -610,15 +585,12 @@ export function useAIChat(
     console.log('[AI] saveConversation 调用')
 
     try {
-      // 如果没有当前对话，创建新对话
       if (!currentConversationId.value) {
-        const title = userMsg.content.slice(0, 50) + (userMsg.content.length > 50 ? '...' : '')
-        const conversation = await window.aiApi.createConversation(sessionId, title)
-        currentConversationId.value = conversation.id
-        console.log('[AI] 创建了新对话:', conversation.id)
+        console.warn('[AI] saveConversation: conversationId 未设置，跳过保存')
+        return
       }
 
-      // 保存用户消息
+      // 保存用户消息（保存后 Agent 下次执行时可从 DB 读到）
       await window.aiApi.addMessage(currentConversationId.value, 'user', userMsg.content)
 
       // 保存 AI 消息（包含 contentBlocks）
@@ -653,6 +625,8 @@ export function useAIChat(
     try {
       const history = await window.aiApi.getMessages(conversationId)
       currentConversationId.value = conversationId
+      // 加载历史对话时，绑定到真实 conversationId，确保同一历史会话复用上下文时间线
+      contextConversationId.value = conversationId
 
       console.log(
         '[AI] 从数据库加载的原始消息:',
@@ -684,6 +658,8 @@ export function useAIChat(
    */
   function startNewConversation(welcomeMessage?: string): void {
     currentConversationId.value = null
+    // 每次新建对话都生成新的草稿上下文键，避免多次“新对话首轮”共享同一 draft 轨迹
+    contextConversationId.value = generateDraftContextConversationId()
     messages.value = []
     sourceMessages.value = []
     currentKeywords.value = []
@@ -726,9 +702,7 @@ export function useAIChat(
     isAIThinking.value = false
     isLoadingSource.value = false
     currentToolStatus.value = null
-    if (agentStatus.value) {
-      setAgentPhase('aborted')
-    }
+    setAgentPhase('aborted')
 
     // 调用主进程中止 Agent 请求
     if (currentAgentRequestId) {

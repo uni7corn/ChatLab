@@ -1,5 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { AnalysisSession, MessageType, ImportProgress, ExportProgress } from '../../src/types/base'
+import type { TokenUsage, AgentRuntimeStatus } from '../shared/types'
 import type {
   MemberActivity,
   MemberNameHistory,
@@ -582,29 +583,7 @@ interface RAGConfig {
   topK?: number
 }
 
-// Token 使用量类型
-interface TokenUsage {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-}
-
-interface AgentRuntimeStatus {
-  phase: 'preparing' | 'thinking' | 'tool_running' | 'responding' | 'completed' | 'aborted' | 'error'
-  round: number
-  toolsUsed: number
-  currentTool?: string
-  contextTokens: number
-  contextWindow: number
-  contextUsage: number
-  totalUsage: TokenUsage
-  nodeCount?: number
-  tagCount?: number
-  segmentSize?: number
-  checkoutCount?: number
-  activeAnchorNodeId?: string | null
-  updatedAt: number
-}
+// TokenUsage & AgentRuntimeStatus — imported from electron/shared/types.ts
 
 // Agent 相关类型
 interface AgentStreamChunk {
@@ -659,10 +638,10 @@ interface AgentApi {
     userMessage: string,
     context: ToolContext,
     onChunk?: (chunk: AgentStreamChunk) => void,
-    historyMessages?: Array<{ role: 'user' | 'assistant'; content: string }>,
     chatType?: 'group' | 'private',
     promptConfig?: PromptConfig,
-    locale?: string
+    locale?: string,
+    maxHistoryRounds?: number
   ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: string }> }
   abort: (requestId: string) => Promise<{ success: boolean; error?: string }>
 }

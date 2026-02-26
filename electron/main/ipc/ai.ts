@@ -8,6 +8,8 @@ import * as rag from '../ai/rag'
 import { aiLogger } from '../ai/logger'
 import { getLogsDir } from '../paths'
 import { Agent, type AgentStreamChunk, type PromptConfig } from '../ai/agent'
+import { getActiveConfig, buildPiModel } from '../ai/llm'
+import { completeSimple, streamSimple, type TextContent as PiTextContent } from '@mariozechner/pi-ai'
 import { t } from '../i18n'
 import type { ToolContext } from '../ai/tools/types'
 import type { IpcContext } from './types'
@@ -115,23 +117,16 @@ export function registerAIHandlers({ win }: IpcContext): void {
 
   /**
    * 创建新的 AI 对话
+   * 参数契约与 preload / 数据层保持一致：(sessionId, title?)
    */
-  ipcMain.handle(
-    'ai:createConversation',
-    async (
-      _,
-      title: string,
-      sessionId?: string,
-      dataSource?: { type: 'chat' | 'member'; id: string; name?: string }
-    ) => {
-      try {
-        return aiConversations.createConversation(title, sessionId, dataSource)
-      } catch (error) {
-        console.error('Failed to create AI conversation:', error)
-        throw error
-      }
+  ipcMain.handle('ai:createConversation', async (_, sessionId: string, title?: string) => {
+    try {
+      return aiConversations.createConversation(sessionId, title)
+    } catch (error) {
+      console.error('Failed to create AI conversation:', error)
+      throw error
     }
-  )
+  })
 
   /**
    * 获取所有 AI 对话列表
@@ -405,13 +400,11 @@ export function registerAIHandlers({ win }: IpcContext): void {
     async (_, provider: llm.LLMProvider, apiKey: string, baseUrl?: string, model?: string) => {
       console.log('[LLM:validateApiKey] Validating:', { provider, baseUrl, model, apiKeyLength: apiKey?.length })
       try {
-        const service = llm.createLLMService({ provider, apiKey, baseUrl, model })
-        const result = await service.validateApiKey()
+        const result = await llm.validateApiKey(provider, apiKey, baseUrl, model)
         console.log('[LLM:validateApiKey] Result:', result)
-        return { success: result.success, error: result.error }
+        return result
       } catch (error) {
         console.error('[LLM:validateApiKey] Validation failed:', error)
-        // 提取有意义的错误信息
         const errorMessage = error instanceof Error ? error.message : String(error)
         return { success: false, error: errorMessage }
       }
@@ -425,75 +418,124 @@ export function registerAIHandlers({ win }: IpcContext): void {
     return llm.hasActiveConfig()
   })
 
-  /**
-   * 发送 LLM 聊天请求（非流式）
-   */
-  ipcMain.handle('llm:chat', async (_, messages: llm.ChatMessage[], options?: llm.ChatOptions) => {
-    aiLogger.info('IPC', 'Non-streaming LLM request received', {
-      messagesCount: messages.length,
-      firstMsgRole: messages[0]?.role,
-      firstMsgContentLen: messages[0]?.content?.length,
-      options,
-    })
-    try {
-      const response = await llm.chat(messages, options)
-      aiLogger.info('IPC', 'Non-streaming LLM request succeeded', { responseLength: response.length })
-      return { success: true, content: response }
-    } catch (error) {
-      aiLogger.error('IPC', 'Non-streaming LLM request failed', { error: String(error) })
-      console.error('LLM chat failed:', error)
-      return { success: false, error: String(error) }
-    }
-  })
+  // ==================== LLM 直接调用 API（SQLLab 等非 Agent 场景使用） ====================
 
   /**
-   * 发送 LLM 聊天请求（流式）
-   * 使用 IPC 事件发送流式数据
+   * 非流式 LLM 调用
+   */
+  ipcMain.handle(
+    'llm:chat',
+    async (
+      _,
+      messages: Array<{ role: string; content: string }>,
+      options?: { temperature?: number; maxTokens?: number }
+    ) => {
+      try {
+        const activeConfig = getActiveConfig()
+        if (!activeConfig) {
+          return { success: false, error: t('llm.notConfigured') }
+        }
+        const piModel = buildPiModel(activeConfig)
+        const now = Date.now()
+        const systemMsg = messages.find((m) => m.role === 'system')
+        const nonSystemMsgs = messages.filter((m) => m.role !== 'system')
+
+        const result = await completeSimple(
+          piModel,
+          {
+            systemPrompt: systemMsg?.content,
+            messages: nonSystemMsgs.map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+              timestamp: now,
+            })),
+          },
+          {
+            apiKey: activeConfig.apiKey,
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
+          }
+        )
+
+        const content = result.content
+          .filter((item): item is PiTextContent => item.type === 'text')
+          .map((item) => item.text)
+          .join('')
+
+        return { success: true, content }
+      } catch (error) {
+        aiLogger.error('IPC', 'llm:chat error', { error: String(error) })
+        return { success: false, error: String(error) }
+      }
+    }
+  )
+
+  /**
+   * 流式 LLM 调用（SQLLab AI 生成 / 结果总结等场景使用）
    */
   ipcMain.handle(
     'llm:chatStream',
-    async (_, requestId: string, messages: llm.ChatMessage[], options?: llm.ChatOptions) => {
-      aiLogger.info('IPC', `Streaming chat request received: ${requestId}`, {
-        messagesCount: messages.length,
-        options,
-      })
-
+    async (
+      _,
+      requestId: string,
+      messages: Array<{ role: string; content: string }>,
+      options?: { temperature?: number; maxTokens?: number }
+    ) => {
       try {
-        const generator = llm.chatStream(messages, options)
-        aiLogger.info('IPC', `Stream generator created: ${requestId}`)
+        const activeConfig = getActiveConfig()
+        if (!activeConfig) {
+          return { success: false, error: t('llm.notConfigured') }
+        }
+        const piModel = buildPiModel(activeConfig)
+        const now = Date.now()
+        const systemMsg = messages.find((m) => m.role === 'system')
+        const nonSystemMsgs = messages.filter((m) => m.role !== 'system')
 
-        // 异步处理流式响应
+        const eventStream = streamSimple(
+          piModel,
+          {
+            systemPrompt: systemMsg?.content,
+            messages: nonSystemMsgs.map((m) => ({
+              role: m.role as 'user' | 'assistant',
+              content: m.content,
+              timestamp: now,
+            })),
+          },
+          {
+            apiKey: activeConfig.apiKey,
+            temperature: options?.temperature,
+            maxTokens: options?.maxTokens,
+          }
+        )
+
+        // 异步消费流，通过事件发送 chunks
         ;(async () => {
-          let chunkIndex = 0
           try {
-            aiLogger.info('IPC', `Iterating stream response: ${requestId}`)
-            for await (const chunk of generator) {
-              chunkIndex++
-              aiLogger.debug('IPC', `Sending chunk #${chunkIndex}: ${requestId}`, {
-                contentLength: chunk.content?.length,
-                isFinished: chunk.isFinished,
-                finishReason: chunk.finishReason,
-              })
-              win.webContents.send('llm:streamChunk', { requestId, chunk })
+            for await (const event of eventStream) {
+              if (event.type === 'text_delta') {
+                win.webContents.send('llm:streamChunk', {
+                  requestId,
+                  chunk: { content: event.delta, isFinished: false },
+                })
+              }
             }
-            aiLogger.info('IPC', `Stream response completed: ${requestId}`, { totalChunks: chunkIndex })
-          } catch (error) {
-            aiLogger.error('IPC', `Stream response error: ${requestId}`, {
-              error: String(error),
-              chunkIndex,
-            })
             win.webContents.send('llm:streamChunk', {
               requestId,
-              chunk: { content: '', isFinished: true, finishReason: 'error' },
+              chunk: { content: '', isFinished: true, finishReason: 'stop' },
+            })
+          } catch (error) {
+            aiLogger.error('IPC', 'llm:chatStream stream error', { requestId, error: String(error) })
+            win.webContents.send('llm:streamChunk', {
+              requestId,
               error: String(error),
+              chunk: { content: '', isFinished: true, finishReason: 'error' },
             })
           }
         })()
 
         return { success: true }
       } catch (error) {
-        aiLogger.error('IPC', `Failed to create stream request: ${requestId}`, { error: String(error) })
-        console.error('LLM streaming chat failed:', error)
+        aiLogger.error('IPC', 'llm:chatStream error', { error: String(error) })
         return { success: false, error: String(error) }
       }
     }
@@ -504,10 +546,11 @@ export function registerAIHandlers({ win }: IpcContext): void {
   /**
    * 执行 Agent 对话（流式）
    * Agent 会自动调用工具并返回最终结果
-   * @param historyMessages 对话历史（可选，用于上下文关联）
+   * Agent 通过 context.conversationId 从 SQLite 读取对话历史（数据流倒置）
    * @param chatType 聊天类型（'group' | 'private'）
    * @param promptConfig 用户自定义提示词配置（可选）
    * @param locale 语言设置（可选，默认 'zh-CN'）
+   * @param maxHistoryRounds 前端用户配置的最大历史轮数（可选，每轮 = user + assistant = 2 条）
    */
   ipcMain.handle(
     'agent:runStream',
@@ -516,35 +559,36 @@ export function registerAIHandlers({ win }: IpcContext): void {
       requestId: string,
       userMessage: string,
       context: ToolContext,
-      historyMessages?: Array<{ role: 'user' | 'assistant'; content: string }>,
       chatType?: 'group' | 'private',
       promptConfig?: PromptConfig,
-      locale?: string
+      locale?: string,
+      maxHistoryRounds?: number
     ) => {
       aiLogger.info('IPC', `Agent stream request received: ${requestId}`, {
         userMessage: userMessage.slice(0, 100),
         sessionId: context.sessionId,
-        historyLength: historyMessages?.length ?? 0,
+        conversationId: context.conversationId,
         chatType: chatType ?? 'group',
         hasPromptConfig: !!promptConfig,
       })
 
       try {
-        // 创建 AbortController 并存储
         const abortController = new AbortController()
         activeAgentRequests.set(requestId, abortController)
 
-        // 转换历史消息格式
-        const formattedHistory =
-          historyMessages?.map((msg) => ({
-            role: msg.role as 'user' | 'assistant',
-            content: msg.content,
-          })) ?? []
+        const activeAIConfig = getActiveConfig()
+        if (!activeAIConfig) {
+          return { success: false, error: t('llm.notConfigured') }
+        }
+        const piModel = buildPiModel(activeAIConfig)
+
+        const contextHistoryLimit = maxHistoryRounds ? maxHistoryRounds * 2 : undefined
 
         const agent = new Agent(
           context,
-          { abortSignal: abortController.signal },
-          formattedHistory,
+          piModel,
+          activeAIConfig.apiKey,
+          { abortSignal: abortController.signal, contextHistoryLimit },
           chatType ?? 'group',
           promptConfig,
           locale ?? 'zh-CN'
@@ -568,9 +612,18 @@ export function registerAIHandlers({ win }: IpcContext): void {
               win.webContents.send('agent:streamChunk', { requestId, chunk })
             })
 
-            // 如果已中止，不发送完成信息
             if (abortController.signal.aborted) {
-              aiLogger.info('IPC', `Agent aborted, skipping completion: ${requestId}`)
+              aiLogger.info('IPC', `Agent aborted: ${requestId}`)
+              win.webContents.send('agent:complete', {
+                requestId,
+                result: {
+                  content: result.content,
+                  toolsUsed: result.toolsUsed,
+                  toolRounds: result.toolRounds,
+                  totalUsage: result.totalUsage,
+                  aborted: true,
+                },
+              })
               return
             }
 
@@ -592,9 +645,12 @@ export function registerAIHandlers({ win }: IpcContext): void {
               totalUsage: result.totalUsage,
             })
           } catch (error) {
-            // 如果是中止错误，不报告为错误
             if (error instanceof Error && error.name === 'AbortError') {
-              aiLogger.info('IPC', `Agent request aborted: ${requestId}`)
+              aiLogger.info('IPC', `Agent request aborted (error): ${requestId}`)
+              win.webContents.send('agent:complete', {
+                requestId,
+                result: { content: '', toolsUsed: [], toolRounds: 0, aborted: true },
+              })
               return
             }
             const friendlyError = formatAIError(error)
