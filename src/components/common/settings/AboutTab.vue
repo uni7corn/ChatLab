@@ -1,8 +1,12 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import { useSettingsStore } from '@/stores/settings'
 
 const { t } = useI18n()
+const settingsStore = useSettingsStore()
+const { debugMode } = storeToRefs(settingsStore)
 
 // 版本信息
 const appVersion = ref(t('common.loading'))
@@ -102,6 +106,27 @@ onMounted(() => {
             </p>
           </div>
           <USwitch :model-value="analyticsEnabled" @update:model-value="toggleAnalytics" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 开发者选项 -->
+    <div>
+      <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+        <UIcon name="i-heroicons-wrench-screwdriver" class="h-4 w-4 text-orange-500" />
+        {{ t('settings.about.developer.title') }}
+      </h3>
+      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.about.developer.debugMode') }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t('settings.about.developer.debugModeDesc') }}
+            </p>
+          </div>
+          <USwitch :model-value="debugMode" @update:model-value="settingsStore.setDebugMode" />
         </div>
       </div>
     </div>

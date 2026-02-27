@@ -5,13 +5,14 @@ import * as path from 'path'
 import * as aiConversations from '../ai/conversations'
 import * as llm from '../ai/llm'
 import * as rag from '../ai/rag'
-import { aiLogger } from '../ai/logger'
+import { aiLogger, setDebugMode } from '../ai/logger'
 import { getLogsDir } from '../paths'
 import { Agent, type AgentStreamChunk, type PromptConfig } from '../ai/agent'
 import { getActiveConfig, buildPiModel } from '../ai/llm'
 import { completeSimple, streamSimple, type TextContent as PiTextContent } from '@mariozechner/pi-ai'
 import { t } from '../i18n'
 import type { ToolContext } from '../ai/tools/types'
+import { getDefaultRulesForLocale, mergeRulesForLocale } from '../ai/preprocessor/builtin-rules'
 import type { IpcContext } from './types'
 
 // ==================== AI Agent 请求追踪 ====================
@@ -112,6 +113,13 @@ function formatAIError(error: unknown): string {
 
 export function registerAIHandlers({ win }: IpcContext): void {
   console.log('[IPC] Registering AI handlers...')
+
+  // ==================== Debug 模式 ====================
+
+  ipcMain.on('app:setDebugMode', (_, enabled: boolean) => {
+    setDebugMode(enabled)
+    aiLogger.info('Config', `Debug mode ${enabled ? 'enabled' : 'disabled'}`)
+  })
 
   // ==================== AI 对话管理 ====================
 
@@ -261,6 +269,16 @@ export function registerAIHandlers({ win }: IpcContext): void {
       console.error('Failed to delete AI message:', error)
       return false
     }
+  })
+
+  // ==================== 脱敏规则 ====================
+
+  ipcMain.handle('ai:getDefaultDesensitizeRules', (_, locale: string) => {
+    return getDefaultRulesForLocale(locale)
+  })
+
+  ipcMain.handle('ai:mergeDesensitizeRules', (_, existingRules: unknown[], locale: string) => {
+    return mergeRulesForLocale(existingRules as any[], locale)
   })
 
   // ==================== LLM 服务（多配置管理）====================
@@ -584,6 +602,26 @@ export function registerAIHandlers({ win }: IpcContext): void {
 
         const contextHistoryLimit = maxHistoryRounds ? maxHistoryRounds * 2 : undefined
 
+        const pp = context.preprocessConfig
+        aiLogger.info('IPC', `Agent context: ${requestId}`, {
+          model: activeAIConfig.model,
+          provider: activeAIConfig.provider,
+          baseUrl: activeAIConfig.baseUrl || '(default)',
+          maxHistoryRounds: maxHistoryRounds ?? '(default)',
+          maxMessagesLimit: context.maxMessagesLimit,
+          hasTimeFilter: !!context.timeFilter,
+          hasCustomPrompt: !!promptConfig,
+          preprocess: pp
+            ? {
+                dataCleaning: pp.dataCleaning ?? true,
+                mergeConsecutive: pp.mergeConsecutive,
+                denoise: pp.denoise,
+                desensitize: pp.desensitize,
+                anonymizeNames: pp.anonymizeNames,
+              }
+            : '(disabled)',
+        })
+
         const agent = new Agent(
           context,
           piModel,
@@ -602,12 +640,8 @@ export function registerAIHandlers({ win }: IpcContext): void {
               if (abortController.signal.aborted) {
                 return
               }
-              // 减少日志噪音：只在工具调用时记录
-              if (chunk.type === 'tool_start' || chunk.type === 'tool_result') {
-                aiLogger.debug('IPC', `Agent chunk: ${requestId}`, {
-                  type: chunk.type,
-                  toolName: chunk.toolName,
-                })
+              if (chunk.type === 'tool_start') {
+                aiLogger.info('IPC', `Tool call: ${chunk.toolName}`, chunk.toolParams)
               }
               win.webContents.send('agent:streamChunk', { requestId, chunk })
             })

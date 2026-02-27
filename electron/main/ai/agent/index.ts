@@ -7,7 +7,7 @@ import { getActiveConfig, buildPiModel } from '../llm'
 import { getAllTools } from '../tools'
 import type { ToolContext, OwnerInfo } from '../tools/types'
 import { getHistoryForAgent } from '../conversations'
-import { aiLogger } from '../logger'
+import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import { Agent as PiAgentCore } from '@mariozechner/pi-agent-core'
 import {
@@ -89,6 +89,9 @@ export class Agent {
       return { content: '', toolsUsed: [], toolRounds: 0, totalUsage: handler.cloneUsage() }
     }
 
+    let debugLastLoggedCount = 0
+    let debugLlmRound = 1
+
     // 初始化 PiAgentCore
     const coreAgent = new PiAgentCore({
       initialState: {
@@ -96,10 +99,40 @@ export class Agent {
         thinkingLevel: this.piModel.reasoning ? 'medium' : 'off',
       },
       getApiKey: () => this.apiKey,
-      convertToLlm: (messages) =>
-        messages.filter(
+      convertToLlm: (messages) => {
+        const filtered = messages.filter(
           (msg): msg is PiMessage => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'toolResult'
-        ),
+        )
+        if (isDebugMode()) {
+          const newMessages = filtered.slice(debugLastLoggedCount)
+          if (newMessages.length > 0) {
+            const parts: string[] = []
+            for (const m of newMessages) {
+              const msg = m as Record<string, unknown>
+              parts.push(`--- ${msg.role} ---`)
+              const content = msg.content as
+                | Array<{ type: string; text?: string; name?: string; arguments?: unknown }>
+                | undefined
+              if (Array.isArray(content)) {
+                for (const block of content) {
+                  if (block.type === 'text' && block.text) {
+                    parts.push(block.text)
+                  } else if (block.type === 'toolCall') {
+                    parts.push(`[Tool Call] ${block.name}(${JSON.stringify(block.arguments)})`)
+                  }
+                }
+              }
+            }
+            aiLogger.debug(
+              'Agent',
+              `[DEBUG] LLM round ${debugLlmRound} - ${newMessages.length} new, total ${filtered.length}\n${parts.join('\n')}`
+            )
+          }
+          debugLastLoggedCount = filtered.length
+          debugLlmRound++
+        }
+        return filtered
+      },
     })
 
     // 配置 prompt、工具、历史
@@ -127,6 +160,10 @@ export class Agent {
     }
 
     try {
+      if (isDebugMode()) {
+        aiLogger.debug('Agent', `[DEBUG] System prompt`, systemPrompt)
+      }
+
       await coreAgent.prompt(userMessage)
 
       if (this.isAborted()) {
@@ -156,6 +193,10 @@ export class Agent {
           .join('') || ''
 
       const finalContent = stripToolCallTags(extractThinkingContent(finalRawContent).cleanContent)
+
+      if (isDebugMode() && finalContent) {
+        aiLogger.debug('Agent', `[DEBUG] Final response\n${finalContent}`)
+      }
 
       handler.emitStatus('completed', coreAgent.state.messages, { force: true })
       onChunk({ type: 'done', isFinished: true, usage: handler.cloneUsage() })

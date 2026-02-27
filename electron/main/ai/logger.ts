@@ -7,6 +7,16 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { getLogsDir, ensureDir } from '../paths'
 
+let debugMode = false
+
+export function setDebugMode(enabled: boolean): void {
+  debugMode = enabled
+}
+
+export function isDebugMode(): boolean {
+  return debugMode
+}
+
 // 日志目录
 let LOG_DIR: string | null = null
 let LOG_FILE: string | null = null
@@ -97,10 +107,8 @@ function writeLog(level: LogLevel, category: string, message: string, data?: any
   if (data !== undefined) {
     try {
       const dataStr = typeof data === 'string' ? data : JSON.stringify(data, null, 2)
-      // 限制数据长度，避免日志过大
-      const maxLength = 2000
-      if (dataStr.length > maxLength) {
-        logLine += `\n${dataStr.slice(0, maxLength)}...[truncated, ${dataStr.length} chars total]`
+      if (!debugMode && dataStr.length > 2000) {
+        logLine += `\n${dataStr.slice(0, 2000)}...[truncated, ${dataStr.length} chars total]`
       } else {
         logLine += `\n${dataStr}`
       }
