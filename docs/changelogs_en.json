@@ -1,5 +1,52 @@
 [
   {
+    "version": "0.12.1",
+    "date": "2026-02-27",
+    "summary": "Add chat-history preprocessing and AI debugging, refactor the Agent/LLM architecture, and fix i18n and Windows theme consistency issues.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add a chat-history preprocessing pipeline.",
+          "Add preprocessing settings UI and configuration management.",
+          "Add session-based context timelines and runtime status for the Agent.",
+          "Add an AI debug mode with improved log observability."
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fix partial UI text not being localized under English settings.",
+          "Fix overlay color updates not matching the active theme on Windows."
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": [
+          "Split the monolithic Agent implementation into a modular architecture.",
+          "Refactor the tool system to AgentTool + TypeBox and complete i18n support.",
+          "Unify the LLM access layer under the pi-ai implementation.",
+          "Refactor data-flow direction and IPC contracts, with corresponding frontend adaptation.",
+          "Introduce shared types and improve ChatStatusBar i18n.",
+          "Refactor parts of the chart stack into a plugin-based architecture."
+        ]
+      },
+      {
+        "type": "chore",
+        "items": [
+          "Remove the over-engineered sessionLog module.",
+          "Remove @ai-sdk dependencies and legacy LLM service implementations.",
+          "Temporarily hide the vector model configuration entry.",
+          "Update project description copy."
+        ]
+      },
+      {
+        "type": "style",
+        "items": ["Run ESLint auto-fix to unify code style."]
+      }
+    ]
+  },
+  {
     "version": "0.11.2",
     "date": "2026-02-15",
     "summary": "Improve chat import workflows and management tools, while enhancing cross-platform parser compatibility.",
